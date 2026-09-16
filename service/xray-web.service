@@ -1,0 +1,16 @@
+[Unit]
+Description=Xray Web Local Console
+After=network.target xray-web-core.service
+Wants=xray-web-core.service
+
+[Service]
+Type=simple
+WorkingDirectory=@PROJECT@
+EnvironmentFile=@ENV@
+ExecStart=@PYTHON@ @MAIN@
+Restart=on-failure
+RestartSec=3
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=default.target

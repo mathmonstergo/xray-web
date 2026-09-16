@@ -1,0 +1,14 @@
+[Unit]
+Description=Private Xray Core for Xray Web
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=@PROJECT@
+EnvironmentFile=@ENV@
+ExecStart=@XRAY@ run -config @CONFIG@
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target

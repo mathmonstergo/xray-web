@@ -1,0 +1,124 @@
+body {
+  background-color: #0A0D12;
+  color: #C9D1D9;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+.panel-box {
+  background-color: #12171F;
+  border: 1px solid #232D3B;
+}
+.list-row {
+  background-color: #12171F;
+  border: 1px solid #232D3B;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
+}
+.list-row:hover {
+  background-color: #161D26;
+  border-color: #384556;
+}
+.list-row-active {
+  background-color: #121C22;
+  border: 1px solid rgba(16, 185, 129, 0.55);
+  box-shadow: 0 0 16px -4px rgba(16, 185, 129, 0.15);
+}
+/* 移除 input[type=number] 浏览器原生上下调节微调箭头 */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* 全局与自定义极简渐隐滚动条：独立悬浮层，不挤压或破坏内容排版 */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: transparent; border-radius: 9999px; transition: background-color 0.4s ease; }
+
+.custom-scrollbar {
+  overflow-y: auto;
+  overflow-y: overlay; /* Webkit 悬浮层特性，不占用布局排版宽度，确保与上下卡片宽度严格绝对对齐 */
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: transparent;
+  border-radius: 9999px;
+  transition: background-color 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* 仅在发生滚动（.is-scrolling）、鼠标悬浮（:hover）或聚焦编辑（:focus-within）时平滑渐显 */
+.custom-scrollbar:hover::-webkit-scrollbar-thumb,
+.custom-scrollbar:focus-within::-webkit-scrollbar-thumb,
+.custom-scrollbar.is-scrolling::-webkit-scrollbar-thumb {
+  background-color: #384556;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: #10B981 !important;
+}
+
+.custom-scrollbar:hover,
+.custom-scrollbar:focus-within,
+.custom-scrollbar.is-scrolling {
+  scrollbar-color: #384556 transparent;
+}
+
+/* 定位当前激活节点的高亮脉冲动效 */
+@keyframes locate-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.85);
+    border-color: rgba(16, 185, 129, 1);
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgba(16, 185, 129, 0.4);
+    border-color: rgba(16, 185, 129, 0.9);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+    border-color: rgba(16, 185, 129, 0.55);
+  }
+}
+.node-locate-pulse {
+  animation: locate-pulse 1.4s ease-out forwards;
+}
+
+.resize-handle {
+  cursor: ns-resize;
+  user-select: none;
+}
+.resize-handle:hover .bar, .is-resizing .bar {
+  background-color: #10B981;
+}
+
+.toast-anim-enter-active, .toast-anim-leave-active {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.toast-anim-enter-from {
+  opacity: 0;
+  transform: translateY(-8px) scale(0.96);
+}
+.toast-anim-leave-to {
+  opacity: 0;
+  transform: translateY(-6px) scale(0.96);
+}
+
+.dropdown-anim-enter-active, .dropdown-anim-leave-active {
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.dropdown-anim-enter-from, .dropdown-anim-leave-to {
+  opacity: 0;
+  transform: translateY(-6px) scale(0.98);
+}

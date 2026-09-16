@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark" translate="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="google" content="notranslate">
+  <title>Xray 控制台</title>
+  <script src="/static/js/tailwind.js"></script>
+  <script src="/static/js/vue.global.prod.js"></script>
+  <link rel="stylesheet" href="/static/css/phosphor-bold.css">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            dark: {
+              bg: '#0A0D12',
+              panel: '#12171F',
+              card: '#161D27',
+              border: '#232D3B',
+              hover: '#1C2432'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-emerald-500 selection:text-white">
+  <div id="app" class="flex-1 flex flex-col pb-16">
+    
+    <!-- 全局轻量浮动 Toast 通知 -->
+    <div class="fixed top-4 right-4 z-50 flex flex-col items-end space-y-2 pointer-events-none max-w-sm">
+      <transition-group name="toast-anim">
+        <div v-for="t in toasts" :key="t.id"
+             class="pointer-events-auto inline-flex items-center space-x-2 px-3.5 py-2 rounded-lg border shadow-xl backdrop-blur-md bg-[#12171F]/95 text-xs transition"
+             :class="{
+               'border-emerald-500/40 text-emerald-300': t.type === 'success',
+               'border-rose-500/40 text-rose-300': t.type === 'error',
+               'border-cyan-500/40 text-cyan-300': t.type === 'info',
+               'border-amber-500/40 text-amber-300': t.type === 'warning'
+             }">
+          <i class="ph-bold text-sm flex-shrink-0"
+             :class="{
+               'ph-check-circle text-emerald-400': t.type === 'success',
+               'ph-x-circle text-rose-400': t.type === 'error',
+               'ph-info text-cyan-400': t.type === 'info',
+               'ph-warning text-amber-400': t.type === 'warning'
+             }"></i>
+          <span class="text-gray-200 font-medium leading-normal whitespace-nowrap">{{ t.message }}</span>
+        </div>
+      </transition-group>
+    </div>
+
+    <!-- 顶部导航栏 -->
+    <header class="border-b border-[#232D3B] bg-[#12171F]/90 backdrop-blur sticky top-0 z-30 px-4 lg:px-8 py-2.5">
+      <div class="max-w-5xl mx-auto flex items-center justify-between gap-4 relative">
+        
+        <!-- 左侧：Logo 区域 (固定槽位，无论版本号在不在，绝不推挤中间 Tab) -->
+        <div class="w-44 flex-shrink-0 flex items-center space-x-2">
+          <span class="w-2 h-2 rounded-full" :class="service.active ? 'bg-emerald-500 animate-pulse' : 'bg-amber-400'" :title="service.active ? '核心运行中' : '核心未运行或状态未知'"></span>
+          <div class="flex items-baseline space-x-1">
+            <span class="font-bold text-sm text-white tracking-wide">Xray</span>
+            <span v-if="service.version" 
+                  class="text-[10px] font-mono text-gray-500 select-none"
+                  :title="`Xray-Core 版本: ${service.version}`">
+              v{{ (service.version || '').replace(/xray/i, '').trim() }}
+            </span>
+          </div>
+        </div>
+
+        <!-- 中间：主导航 Tab (百分比绝对居中锁定 50% 轴线，横向位置绝对死锁) -->
+        <nav class="absolute left-1/2 -translate-x-1/2 flex items-center space-x-1 bg-[#0A0D12] p-0.5 rounded-lg border border-[#232D3B] text-xs select-none">
+          <button @click="currentTab = 'nodes'"
+                  class="px-3 py-1 rounded-md transition font-medium flex items-center space-x-1.5"
+                  :class="currentTab === 'nodes' ? 'bg-[#1C2432] text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'">
+            <i class="ph-bold ph-hard-drives text-emerald-400"></i>
+            <span>节点列表</span>
+          </button>
+          <button @click="currentTab = 'routing'"
+                  class="px-3 py-1 rounded-md transition font-medium flex items-center space-x-1.5"
+                  :class="currentTab === 'routing' ? 'bg-[#1C2432] text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'">
+            <i class="ph-bold ph-git-fork text-emerald-400"></i>
+            <span>分流规则</span>
+          </button>
+        </nav>
+
+        <!-- 右侧快捷操作：端口卡片 + 导入 -->
+        <div class="flex items-center space-x-2 flex-shrink-0">
+          
+          <!-- 紧凑代理服务端口卡片 (向下无缝延展下拉菜单，点击文字区域打开端口设置) -->
+          <div ref="copyMenuRef" 
+               class="relative flex items-center select-none text-xs"
+               @mouseenter="showCopyMenu = true" 
+               @mouseleave="showCopyMenu = false">
+            
+            <!-- 紧凑矩形本体：展开时底部无边框且直角，与下拉框完美无缝融为一体 -->
+            <div class="h-7 flex items-center font-mono text-[11px] border transition shadow-sm"
+                 :class="showCopyMenu 
+                   ? 'bg-[#12171F] border-[#232D3B] rounded-t-lg rounded-b-none z-50 border-b-transparent' 
+                   : 'bg-[#0A0D12] hover:bg-[#161D27] border-[#232D3B] hover:border-emerald-500/40 rounded-lg'">
+              
+              <!-- 端口文字区域：点击打开端口设置弹窗 (无设置icon，紧凑) -->
+              <div @click="openPortModal()" 
+                   class="h-full px-2.5 flex items-center space-x-1.5 cursor-pointer"
+                   title="点击修改代理服务端口 (全局设置)">
+                <span class="text-gray-400">直通:</span>
+                <span class="text-amber-400 font-bold">{{ ports.socks }}/{{ ports.http }}</span>
+                <span class="text-gray-600 px-0.5">|</span>
+                <span class="text-gray-400">分流:</span>
+                <span class="text-emerald-400 font-bold">{{ ports.routing }}</span>
+              </div>
+
+              <!-- 分割线 -->
+              <div class="h-3.5 w-px bg-[#232D3B]"></div>
+
+              <!-- 右侧下箭头：点击仅展开/收起下拉菜单 -->
+              <button @click.stop="showCopyMenu = !showCopyMenu"
+                      class="h-full px-1.5 flex items-center justify-center text-gray-400 hover:text-emerald-400 transition cursor-pointer"
+                      title="点击展开复制代理环境变量">
+                <i class="ph-bold ph-caret-down text-[10px] transition-transform duration-150"
+                   :class="{'rotate-180 !text-emerald-400': showCopyMenu}"></i>
+              </button>
+            </div>
+
+            <!-- 下拉框：从矩形向下无缝延展 (top-full -mt-px left-0 right-0 w-full rounded-b-xl border-t-0) -->
+            <transition name="dropdown-anim">
+              <div v-if="showCopyMenu" 
+                   class="absolute left-0 right-0 w-full top-full -mt-px bg-[#12171F] border border-[#232D3B] border-t-0 rounded-b-xl shadow-2xl p-1.5 z-50 text-xs divide-y divide-gray-800 space-y-1">
+                
+                <!-- Local 本地版本 (127.0.0.1) -->
+                <div class="pb-1 space-y-0.5">
+                  <div class="text-[10px] text-gray-500 font-semibold px-2 py-0.5">
+                    <span>LOCAL 本地 (<span class="cursor-pointer hover:text-emerald-400 transition select-text"
+                                         @click.stop="copyHostAddress('127.0.0.1', '本地地址')"
+                                         title="点击复制 127.0.0.1">127.0.0.1</span>)</span>
+                  </div>
+                  <button @click="copyEnvCommand('local_routing')" 
+                          class="w-full text-left px-2 py-1.5 rounded hover:bg-[#1C2432] transition group flex items-center justify-between min-w-0">
+                    <div class="min-w-0 flex-1 pr-1">
+                      <div class="text-gray-200 group-hover:text-emerald-400 font-medium font-mono text-[11px]">规则分流 ({{ ports.routing }})</div>
+                      <div class="text-gray-500 text-[10px] font-mono truncate">export http_proxy=http://127.0.0.1:{{ ports.routing }}...</div>
+                    </div>
+                    <i class="ph-bold ph-copy text-gray-500 group-hover:text-emerald-400 text-xs flex-shrink-0"></i>
+                  </button>
+                  <button @click="copyEnvCommand('local_direct')" 
+                          class="w-full text-left px-2 py-1.5 rounded hover:bg-[#1C2432] transition group flex items-center justify-between min-w-0">
+                    <div class="min-w-0 flex-1 pr-1">
+                      <div class="text-gray-200 group-hover:text-amber-400 font-medium font-mono text-[11px]">直通代理 ({{ ports.http }}/{{ ports.socks }})</div>
+                      <div class="text-gray-500 text-[10px] font-mono truncate">export http_proxy=http://127.0.0.1:{{ ports.http }}...</div>
+                    </div>
+                    <i class="ph-bold ph-copy text-gray-500 group-hover:text-amber-400 text-xs flex-shrink-0"></i>
+                  </button>
+                </div>
+
+                <!-- 桥接 / 宿主机局域网地址版本 (动态探测) -->
+                <div class="pt-1 space-y-0.5">
+                  <div class="text-[10px] text-gray-500 font-semibold px-2 py-0.5">
+                    <span>桥接 / 宿主机 (<span class="cursor-pointer hover:text-emerald-400 transition select-text"
+                                            @click.stop="copyHostAddress(bridgeIP, '桥接地址')"
+                                            :title="'点击复制 ' + bridgeIP">{{ bridgeIP }}</span>)</span>
+                  </div>
+                  <button @click="copyEnvCommand('bridge_routing')" 
+                          class="w-full text-left px-2 py-1.5 rounded hover:bg-[#1C2432] transition group flex items-center justify-between min-w-0">
+                    <div class="min-w-0 flex-1 pr-1">
+                      <div class="text-gray-200 group-hover:text-emerald-400 font-medium font-mono text-[11px]">规则分流 ({{ ports.routing }})</div>
+                      <div class="text-gray-500 text-[10px] font-mono truncate">export http_proxy=http://{{ bridgeIP }}:{{ ports.routing }}...</div>
+                    </div>
+                    <i class="ph-bold ph-copy text-gray-500 group-hover:text-emerald-400 text-xs flex-shrink-0"></i>
+                  </button>
+                  <button @click="copyEnvCommand('bridge_direct')" 
+                          class="w-full text-left px-2 py-1.5 rounded hover:bg-[#1C2432] transition group flex items-center justify-between min-w-0">
+                    <div class="min-w-0 flex-1 pr-1">
+                      <div class="text-gray-200 group-hover:text-amber-400 font-medium font-mono text-[11px]">直通代理 ({{ ports.http }})</div>
+                      <div class="text-gray-500 text-[10px] font-mono truncate">export http_proxy=http://{{ bridgeIP }}:{{ ports.http }}...</div>
+                    </div>
+                    <i class="ph-bold ph-copy text-gray-500 group-hover:text-amber-400 text-xs flex-shrink-0"></i>
+                  </button>
+                </div>
+
+              </div>
+            </transition>
+          </div>
+
+          <!-- 导入按钮 -->
+          <button @click="openImportModal = true" 
+                  class="h-7 flex items-center space-x-1 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium transition shadow-sm">
+            <i class="ph-bold ph-plus text-xs"></i>
+            <span>导入</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- 主体区域 (min-h 保持稳定，Tab 切换不发生高度跳跃) -->
+    <main class="flex-1 max-w-5xl w-full mx-auto px-4 lg:px-8 py-4 space-y-4 min-h-[580px]">
+      
+      <div v-if="statusError || service.active === false" role="status" class="text-xs text-amber-300 border border-amber-500/25 rounded-lg px-3 py-2">
+        {{ statusError || 'Xray 核心未运行，请检查服务配置与启动日志。' }}
+      </div>
+      <!-- 极简核心状态面板 (当前运行节点状态) -->
+      <div class="panel-box rounded-xl p-3.5 flex items-center justify-between text-xs bg-[#12171F]">
+        <div class="flex items-center space-x-3 min-w-0 flex-1">
+          <div class="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0">
+            <i class="ph-bold ph-radio-button text-base"></i>
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center space-x-2">
+              <h2 class="font-bold text-sm text-white truncate cursor-pointer hover:text-emerald-400 transition"
+                  @click="locateActiveNode()" title="点击定位至节点列表对应位置">
+                {{ activeNode?.name || '未选择节点' }}
+              </h2>
+              <span class="text-[10px] text-emerald-400 font-mono uppercase bg-emerald-500/10 px-1 rounded border border-emerald-500/20">
+                {{ activeNode?.protocol || 'VLESS' }}
+              </span>
+            </div>
+            
+            <div class="flex items-center space-x-2 text-gray-400 font-mono text-[11px] mt-0.5">
+              <span class="cursor-pointer hover:text-gray-200"
+                    @click="toggleNodeAddressReveal(activeNode?.id)"
+                    :title="isNodeRevealed(activeNode?.id) ? '点击隐藏' : '点击查看完整地址'">
+                {{ formatAddress(activeNode?.address, activeNode?.port, isNodeRevealed(activeNode?.id)) }}
+              </span>
+              <span v-if="activeNode?.security === 'reality'" class="text-purple-400 text-[10px]">Reality</span>
+              <span v-if="activeNode?.encryption && activeNode.encryption.includes('mlkem')" class="text-cyan-400 text-[10px]">ML-KEM</span>
+              <!-- 出口 IP 与归属地 -->
+              <span v-if="outboundNetwork.success" class="text-gray-500">│</span>
+              <span v-if="outboundNetwork.success" class="text-emerald-400/80 text-[10px] font-sans" :title="'出口 IP: ' + outboundNetwork.ip">
+                {{ outboundNetwork.country || outboundNetwork.ip }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= 视图 1：节点列表 ================= -->
+      <div v-show="currentTab === 'nodes'" class="space-y-3">
+        
+        <!-- 订阅分组切换栏 (Tabs) + 订阅管理条 (严格固定 h-11，切换任何订阅绝对不发生高度跳跃) -->
+        <div class="panel-box rounded-xl px-2.5 h-11 flex items-center justify-between gap-2 text-xs overflow-hidden">
+          <!-- 订阅过滤胶囊群 -->
+          <div class="flex items-center gap-1.5 overflow-x-auto py-1 flex-1 min-w-0">
+            <!-- 全部节点 -->
+            <button @click="activeSubFilter = 'all'"
+                    class="h-7 px-2.5 rounded-lg transition font-medium flex items-center space-x-1 flex-shrink-0"
+                    :class="activeSubFilter === 'all' ? 'bg-[#1C2432] text-white border border-[#232D3B]' : 'text-gray-400 hover:text-gray-200 hover:bg-[#12171F]'">
+              <span>全部节点</span>
+              <span class="text-[10px] text-gray-500 font-mono">({{ nodes.length }})</span>
+            </button>
+
+            <!-- 节点导入 -->
+            <button v-if="manualNodesCount > 0" 
+                    @click="activeSubFilter = 'manual'"
+                    class="h-7 px-2.5 rounded-lg transition font-medium flex items-center space-x-1 flex-shrink-0"
+                    :class="activeSubFilter === 'manual' ? 'bg-[#1C2432] text-white border border-[#232D3B]' : 'text-gray-400 hover:text-gray-200 hover:bg-[#12171F]'">
+              <span>节点导入</span>
+              <span class="text-[10px] text-gray-500 font-mono">({{ manualNodesCount }})</span>
+            </button>
+
+            <!-- 各订阅源标签 (切换后再次点击名称即可原地修改) -->
+            <button v-for="sub in subscriptions" :key="sub.id"
+                    @click="handleSubTabClick(sub)"
+                    class="h-7 px-2.5 rounded-lg transition font-medium flex items-center space-x-1.5 flex-shrink-0 cursor-pointer"
+                    :class="activeSubFilter === sub.id ? 'bg-emerald-950/40 text-emerald-300 border border-emerald-700/50' : 'text-gray-400 hover:text-gray-200 hover:bg-[#12171F]'">
+              <i class="ph-bold ph-rss text-[10px] text-amber-400"></i>
+              <!-- 非编辑态：再次点击激活订阅名称进入就地修改 -->
+              <span v-if="editingSubId !== sub.id" 
+                    :title="activeSubFilter === sub.id ? '再次点击修改订阅名称' : sub.name"
+                    class="hover:text-white transition">
+                {{ sub.name }}
+              </span>
+              <!-- 行内编辑态：输入框，回车或点击任意外部区域直接保存 -->
+              <input v-else 
+                     ref="inlineSubRenameInputRef"
+                     v-model="inlineSubRenameValue"
+                     @click.stop
+                     @keydown.enter="saveInlineSubRename(sub)"
+                     @keydown.esc="cancelInlineSubRename"
+                     @blur="saveInlineSubRename(sub)"
+                     type="text" 
+                     class="h-5 bg-[#0A0D12] border border-emerald-500 rounded px-1 text-xs text-white font-medium focus:outline-none min-w-[70px] max-w-[140px]">
+              <span class="text-[10px] font-mono opacity-70">({{ getSubNodeCount(sub.id) }})</span>
+            </button>
+          </div>
+
+          <!-- 当前选中订阅的更新与管理专属工具 (严格 h-7 居中，与整行高度完美锁死) -->
+          <div v-if="currentSelectedSub" class="flex items-center space-x-1.5 border-l border-[#232D3B] pl-2.5 h-7 flex-shrink-0">
+            <span @click="copyText(currentSelectedSub.url, '订阅链接已复制')"
+                  class="text-gray-500 hover:text-emerald-400 text-[11px] font-mono hidden md:inline truncate max-w-[180px] cursor-pointer transition select-none"
+                  title="点击复制订阅链接">
+              {{ currentSelectedSub.url }}
+            </span>
+            <button @click="updateSub(currentSelectedSub)" :disabled="currentSelectedSub.updating"
+                    class="h-7 px-2 rounded bg-[#0A0D12] hover:bg-[#1C2432] text-emerald-400 text-xs transition border border-[#232D3B] flex items-center space-x-1"
+                    title="立即更新拉取最新订阅节点">
+              <i class="ph-bold ph-arrows-clockwise text-xs" :class="{'animate-spin': currentSelectedSub.updating}"></i>
+              <span>{{ currentSelectedSub.updating ? '更新中' : '更新订阅' }}</span>
+            </button>
+            <button @click="deleteSub(currentSelectedSub)"
+                    class="w-7 h-7 rounded bg-[#0A0D12] hover:bg-[#1C2432] text-gray-400 hover:text-rose-400 transition border border-[#232D3B] flex items-center justify-center"
+                    title="删除该订阅源">
+              <i class="ph-bold ph-trash text-xs"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- 节点搜索栏与动态联动操作区 -->
+        <div class="flex items-center justify-between gap-3 h-8">
+          <div class="relative w-full max-w-xs">
+            <i class="ph-bold ph-magnifying-glass absolute left-3 top-2 text-gray-500 text-xs"></i>
+            <input v-model="searchQuery" type="text" placeholder="搜索节点备注或服务器..." 
+                   class="w-full bg-[#12171F] border border-[#232D3B] rounded-lg pl-8 pr-3 py-1.5 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-emerald-500 transition">
+          </div>
+
+          <!-- 右侧操作区：默认常驻排序与多选操作开关；开启多选后展开操作组 -->
+          <div class="flex items-center flex-shrink-0">
+            <transition name="dropdown-anim" mode="out-in">
+              <!-- 默认非多选模式：常驻【排序按钮】与【多选操作开关】 -->
+              <div v-if="!isMultiSelectMode" key="normal-bar" class="flex items-center space-x-2">
+                <button @click="cycleDelaySort" 
+                        class="h-7 px-2.5 rounded-lg border border-[#232D3B] bg-[#12171F] hover:bg-[#1C2432] text-xs text-gray-300 hover:text-white transition flex items-center space-x-1.5 shadow-sm"
+                        title="点击切换延迟排序">
+                  <i class="ph-bold text-xs" :class="{
+                    'ph-arrows-down-up text-gray-400': delaySortOrder === 'none',
+                    'ph-sort-ascending text-emerald-400': delaySortOrder === 'asc',
+                    'ph-sort-descending text-amber-400': delaySortOrder === 'desc'
+                  }"></i>
+                  <span class="font-mono text-[11px]">{{ delaySortLabel }}</span>
+                </button>
+
+                <button @click.stop="toggleMultiSelectMode" 
+                        class="multi-select-toggle h-7 px-2.5 rounded-lg border text-xs font-medium transition flex items-center space-x-1 shadow-sm border-[#232D3B] bg-[#12171F] hover:bg-[#1C2432] text-gray-300 hover:text-white">
+                  <i class="ph-bold ph-check-square text-xs text-emerald-400"></i>
+                  <span>多选操作</span>
+                </button>
+              </div>
+
+              <!-- 开启多选模式时：展开批量操作按钮组 -->
+              <div v-else key="batch-bar" class="batch-actions-bar flex items-center space-x-1.5">
+                <div class="flex items-center space-x-1 text-xs text-gray-400 font-mono pr-1">
+                  <span>已选 <strong class="text-emerald-400">{{ selectedNodeIds.length }}</strong> 项</span>
+                  <button v-if="selectedNodeIds.length > 0" @click="clearSelection" class="text-gray-500 hover:text-gray-300 p-0.5" title="取消所有选中">
+                    <i class="ph-bold ph-x text-xs"></i>
+                  </button>
+                  <button @click="toggleSelectVisible" 
+                          class="ml-1 text-[10px] text-gray-400 hover:text-emerald-400 font-sans px-1.5 py-0.5 rounded border border-[#232D3B] hover:border-emerald-500/30 bg-[#0A0D12] transition" 
+                          :title="allVisibleSelected ? '取消全选' : '全选所有显示的节点'">
+                    {{ allVisibleSelected ? '全不选' : '全选' }}
+                  </button>
+                </div>
+
+                <button @click="batchTestDelay" :disabled="batchTesting"
+                        class="h-7 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium transition flex items-center space-x-1 shadow-sm disabled:opacity-50">
+                  <i class="ph-bold text-xs" :class="batchTesting ? 'ph-circle-notch animate-spin' : 'ph-gauge'"></i>
+                  <span>{{ batchTesting ? '测试中' : '延迟测试' }}</span>
+                </button>
+
+                <button v-if="batchTesting || batchSpeedTesting" @click="cancelActiveTest"
+                        class="h-7 px-2.5 rounded-lg bg-rose-500/15 hover:bg-rose-600 text-rose-400 hover:text-white border border-rose-500/25 text-xs font-medium transition flex items-center space-x-1"
+                        title="取消当前测试 (Esc)">
+                  <i class="ph-bold ph-x text-xs"></i>
+                  <span>取消</span>
+                </button>
+
+                <button @click="batchTestSpeed" :disabled="batchSpeedTesting"
+                        class="h-7 px-2.5 rounded-lg bg-[#16212D] hover:bg-[#1C2A3A] text-emerald-400 border border-emerald-500/30 text-xs font-medium transition flex items-center space-x-1 shadow-sm disabled:opacity-50">
+                  <i class="ph-bold text-xs text-amber-400" :class="batchSpeedTesting ? 'ph-circle-notch animate-spin' : 'ph-lightning'"></i>
+                  <span>{{ batchSpeedTesting ? '测速中' : '速度测试' }}</span>
+                </button>
+
+                <button @click="batchDeleteSelected"
+                        class="h-7 px-2 rounded-lg bg-rose-500/15 hover:bg-rose-600 text-rose-400 hover:text-white border border-rose-500/25 text-xs font-medium transition flex items-center space-x-1"
+                        title="批量删除所选节点">
+                  <i class="ph-bold ph-trash text-xs"></i>
+                  <span>删除</span>
+                </button>
+
+                <button @click="exitMultiSelectMode" 
+                        class="h-7 px-2.5 rounded-lg border border-[#232D3B] bg-[#12171F] hover:bg-[#1C2432] text-xs text-gray-400 hover:text-white transition"
+                        title="退出多选模式">
+                  <span>退出</span>
+                </button>
+              </div>
+            </transition>
+          </div>
+        </div>
+
+        <!-- 节点对齐表格列表 (独立滚动容器，紧紧控制节点列表，滚动条悬浮不挤压布局，与上方卡片严格对齐) -->
+        <div class="custom-scrollbar overflow-y-auto space-y-1 select-none max-h-[calc(100vh-285px)] min-h-[160px]">
+          <div v-for="node in displayNodes" :id="'node-row-' + node.id" :key="node.id" 
+               @click="handleNodeClick(node, $event)"
+               @dblclick.prevent="handleNodeDblClick(node)"
+               class="list-row rounded-lg pl-3.5 pr-0 h-9 flex items-center justify-between text-xs cursor-pointer group overflow-hidden relative transition-colors"
+               :class="[
+                 node.is_active ? 'list-row-active' : '',
+                 isNodeSelected(node.id) ? '!border-emerald-500/80 !bg-[#152330]' : ''
+               ]">
+            
+            <!-- 列 1：左侧自适应区域 -->
+            <div class="flex-1 min-w-0 flex items-center space-x-2.5 pr-2 overflow-hidden">
+              <!-- 激活指示槽：普通模式支持单击切换节点，多选模式变身为复选框 -->
+              <div class="w-4 h-4 flex-shrink-0 flex items-center justify-center cursor-pointer group/dot p-0.5"
+                   @click.stop="isMultiSelectMode ? handleNodeClick(node) : fastSwitchNode(node)"
+                   :title="isMultiSelectMode ? (isNodeSelected(node.id) ? '已选中，点击取消' : '点击选中') : (node.is_active ? '当前运行节点' : '点击切换至此节点')">
+                <template v-if="isMultiSelectMode">
+                  <i v-if="isNodeSelected(node.id)" class="ph-bold ph-check-square text-emerald-400 text-sm"></i>
+                  <i v-else class="ph-bold ph-square text-gray-600 group-hover/dot:text-gray-400 text-sm"></i>
+                </template>
+                <template v-else>
+                  <span v-if="node.is_active" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse block"></span>
+                  <span v-else-if="switchingNodeId === node.id" class="w-2.5 h-2.5 rounded-full border-2 border-amber-400 border-t-transparent animate-spin block"></span>
+                  <span v-else class="w-1.5 h-1.5 rounded-full bg-gray-700 group-hover/dot:bg-emerald-400 group-hover/dot:scale-125 transition-all block"></span>
+                </template>
+              </div>
+
+              <!-- 节点名称与订阅标签：同一水平基线对齐，垂直视觉居中 -->
+              <div class="min-w-0 flex-1 flex items-baseline space-x-2 overflow-hidden">
+                <!-- 节点名称 (多选模式下点击切换多选，普通模式点击行内就地编辑) -->
+                <span v-if="editingNodeId !== node.id" 
+                      class="font-medium text-white truncate text-xs hover:text-emerald-400 transition leading-snug cursor-pointer"
+                      @click.stop="isMultiSelectMode ? handleNodeClick(node) : startInlineRename(node)" 
+                      :title="isMultiSelectMode ? '' : '点击修改备注'">
+                  {{ node.name }}
+                </span>
+                <input v-else 
+                       ref="inlineRenameInputRef"
+                       v-model="inlineRenameValue"
+                       @click.stop
+                       @keydown.enter="saveInlineRename(node)"
+                       @keydown.esc="cancelInlineRename"
+                       @blur="saveInlineRename(node)"
+                       type="text" 
+                       class="h-5 bg-[#0A0D12] border border-emerald-500 rounded px-1 text-xs text-white font-medium focus:outline-none min-w-[100px] max-w-[200px]">
+
+                <!-- 订阅来源标签 (纯文字无边框背景) -->
+                <span v-if="getNodeSubName(node.subscription_id)" 
+                      class="text-[11px] text-gray-500 font-sans leading-snug flex-shrink-0 select-none">
+                  {{ getNodeSubName(node.subscription_id) }}
+                </span>
+              </div>
+            </div>
+
+            <!-- 列 2：延迟列 (多选模式下禁用单项点击交互) -->
+            <div class="w-16 flex-shrink-0 flex items-center justify-center font-mono text-xs select-none">
+              <button @click.stop="isMultiSelectMode ? handleNodeClick(node) : testNode(node)" 
+                      class="h-6 px-1 rounded hover:bg-[#1C2432] transition flex items-center justify-center cursor-pointer group/btn"
+                      :class="{'pointer-events-none opacity-80': isMultiSelectMode}"
+                      :title="isMultiSelectMode ? '' : latencyTitle(node.last_delay)">
+                <span v-if="node.testing && (node.last_delay == null || node.last_delay < 0)" class="text-amber-400 animate-pulse text-[11px] flex items-center space-x-1">
+                  <i class="ph-bold ph-circle-notch animate-spin text-xs"></i>
+                </span>
+                <span v-else-if="node.testing && node.last_delay >= 0" :class="getLatencyClass(node.last_delay)" class="font-bold text-[11px] animate-pulse">
+                  {{ node.last_delay }}ms
+                </span>
+                <span v-else-if="node.last_delay === null" class="text-gray-600 group-hover/btn:text-amber-400 transition flex items-center">
+                  <i class="ph-bold ph-gauge text-xs"></i>
+                </span>
+                <span v-else-if="node.last_delay < 0" class="text-rose-400 font-semibold text-[11px] group-hover/btn:text-rose-300 transition">
+                  超时
+                </span>
+                <span v-else :class="getLatencyClass(node.last_delay)" class="font-bold text-[11px] group-hover/btn:text-amber-300 transition">
+                  {{ node.last_delay }}ms
+                </span>
+              </button>
+            </div>
+
+            <!-- 列 3：速度测试列 (多选模式下禁用单项点击交互) -->
+            <div class="w-[4.75rem] flex-shrink-0 flex items-center justify-center font-mono text-xs select-none">
+              <button @click.stop="isMultiSelectMode ? handleNodeClick(node) : testNodeSpeed(node)" 
+                      class="h-6 px-1 rounded hover:bg-[#1C2432] transition flex items-center justify-center cursor-pointer group/btn"
+                      :class="{'pointer-events-none opacity-80': isMultiSelectMode}"
+                      :title="isMultiSelectMode ? '' : speedTitle(node.last_speed, node.liveSpeed)">
+                <span v-if="node.speedTesting && node.liveSpeed" class="font-bold text-[11px] text-amber-300 animate-pulse">
+                  {{ node.liveSpeed }}
+                </span>
+                <span v-else-if="node.speedTesting" class="text-amber-400 animate-pulse text-[11px] flex items-center">
+                  <i class="ph-bold ph-circle-notch animate-spin text-xs"></i>
+                </span>
+                <span v-else-if="!node.last_speed" class="text-gray-600 group-hover/btn:text-amber-400 transition flex items-center">
+                  <i class="ph-bold ph-lightning text-xs"></i>
+                </span>
+                <span v-else-if="node.last_speed === '超时'" class="text-rose-400 font-semibold text-[11px] group-hover/btn:text-rose-300 transition">
+                  超时
+                </span>
+                <span v-else class="font-bold text-[11px] text-emerald-400 group-hover/btn:text-emerald-300 transition">
+                  {{ node.last_speed }}
+                </span>
+              </button>
+            </div>
+
+            <!-- 节点特性标签组 (向右对齐一位：无加密算法特性时自动贴紧右侧地址，无空缺断层) -->
+            <div class="w-44 flex-shrink-0 flex items-center justify-end space-x-1.5 pr-2 hidden lg:flex select-none leading-none">
+              <!-- 协议微标 -->
+              <span class="text-[10px] text-gray-400 font-mono uppercase px-1.5 py-0.5 rounded bg-gray-800/60 border border-gray-700/50">
+                {{ node.protocol }}
+              </span>
+
+              <!-- 安全特性微标 -->
+              <span v-if="node.security === 'reality'" class="text-[10px] text-purple-300 font-sans px-1.5 py-0.5 rounded bg-purple-500/10 border border-purple-500/25">
+                Reality
+              </span>
+              <span v-else-if="node.security === 'tls'" class="text-[10px] text-cyan-300 font-sans px-1.5 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/25">
+                TLS
+              </span>
+
+              <!-- 高级特性微标：自适应识别 ML-KEM、Vision、WS/gRPC 或主流对称加密算法，无多余特性时自然对齐不留白 -->
+              <span v-if="getNodeFeatureTag(node)" 
+                    class="text-[10px] font-sans px-1.5 py-0.5 rounded border"
+                    :class="getNodeFeatureTag(node).class">
+                {{ getNodeFeatureTag(node).label }}
+              </span>
+            </div>
+
+            <!-- 去敏 IP 列 (窄屏隐藏，多选模式下禁用内部复制交互) -->
+            <div class="w-[172px] flex-shrink-0 items-center justify-end space-x-1 font-mono text-gray-400 text-xs pr-2 hidden md:flex" 
+                 :class="{'pointer-events-none': isMultiSelectMode}"
+                 @click.stop>
+              <span class="cursor-pointer hover:text-gray-200 truncate"
+                    @click="toggleNodeAddressReveal(node.id)"
+                    :title="isNodeRevealed(node.id) ? '点击隐藏' : '点击查看完整服务器地址'">
+                {{ formatAddress(node.address, node.port, isNodeRevealed(node.id)) }}
+              </span>
+              <button @click="copyLink(node.raw_link)" class="text-gray-600 hover:text-emerald-400 transition p-0.5 flex-shrink-0" title="复制分享链接">
+                <i class="ph-bold ph-copy text-[10px]"></i>
+              </button>
+            </div>
+
+            <!-- 列 6：末尾右侧贴边内嵌删除槽 (多选模式下完全隐藏单项删除) -->
+            <div v-if="!isMultiSelectMode" class="w-8 self-stretch flex items-center justify-center flex-shrink-0" @click.stop>
+              <!-- 非运行节点：纯红实底，可点击删除 -->
+              <button v-if="!node.is_active" 
+                      @click="deleteNode(node)"
+                      class="w-full h-full flex items-center justify-center bg-rose-600 hover:bg-rose-700 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-150 shadow-sm"
+                      title="删除该节点">
+                <i class="ph-bold ph-trash text-xs"></i>
+              </button>
+
+              <!-- 正在运行节点：暗色实底，不可点击受保护状态 -->
+              <div v-else 
+                   class="w-full h-full flex items-center justify-center bg-[#18212B] border-l border-[#253242] text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity duration-150 cursor-not-allowed select-none"
+                   title="正在运行的节点受保护，不可删除">
+                <i class="ph-bold ph-trash text-xs opacity-60"></i>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- 空状态引导 -->
+          <div v-if="loadingNodes || loadError" role="status" class="py-12 text-center text-xs text-gray-400">
+            <span>{{ loadingNodes ? '正在加载节点…' : loadError }}</span>
+            <button v-if="loadError" @click="reloadNodes" class="ml-2 text-emerald-400 hover:text-emerald-300">重试</button>
+          </div>
+          <div v-else-if="displayNodes.length === 0" class="flex flex-col items-center justify-center py-16 text-gray-500 space-y-4">
+            <div class="w-16 h-16 rounded-2xl bg-[#12171F] border border-[#232D3B] flex items-center justify-center">
+              <i class="ph-bold ph-cloud-slash text-2xl text-gray-600"></i>
+            </div>
+            <div class="text-center space-y-1">
+              <p class="text-sm text-gray-400 font-medium">暂无节点</p>
+              <p class="text-xs text-gray-600">导入订阅链接或节点分享链接开始使用</p>
+            </div>
+            <button @click="openImportModal = true"
+                    class="flex items-center space-x-1.5 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium transition shadow-sm">
+              <i class="ph-bold ph-plus text-xs"></i>
+              <span>立即导入</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= 视图 2：分流规则管理 (并排三栏工作台，全局统一保存与撤销) ================= -->
+      <div v-show="currentTab === 'routing'" class="space-y-3">
+        
+        <!-- 顶部提示说明 -->
+        <div class="text-xs text-gray-400">
+          端口 <strong class="text-emerald-400 font-mono">{{ ports.routing }}</strong> 按拦截 → 代理 → 直连的优先级匹配；端口 <strong class="text-amber-400 font-mono">{{ ports.socks }}/{{ ports.http }}</strong> 强制直通代理。
+        </div>
+
+        <!-- 并排三栏大工作台：直连 / 代理 / 拦截 -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+          
+          <!-- 栏 1：直连规则 (Direct) -->
+          <div class="panel-box rounded-xl p-3 flex flex-col relative h-[280px] md:h-[460px] bg-[#12171F]">
+            <!-- 栏标头 -->
+            <div class="flex items-center justify-between pb-2 border-b border-[#232D3B] text-xs">
+              <div class="flex items-center space-x-2">
+                <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+                <span class="font-bold text-white">直连规则</span>
+                <span class="text-[10px] font-mono text-cyan-400 bg-cyan-500/10 px-1.5 py-0.2 rounded border border-cyan-500/20">
+                  {{ getCatLinesCount('direct') }} 项
+                </span>
+                <span v-if="isCatDirty('direct')" class="text-[10px] text-amber-400 font-mono">
+                  ● 已修改
+                </span>
+              </div>
+              <span class="text-[10px] text-gray-500 font-mono">每行一项</span>
+            </div>
+
+            <!-- 同一个大内容框，随时点击开始编写 -->
+            <div class="flex-1 min-h-0 relative mt-2">
+              <textarea v-model="categoryTexts['direct']" 
+                        spellcheck="false"
+                        placeholder="输入直连域名 (如 geosite:cn, cursor.sh) 或 IP (如 192.168.0.0/16, geoip:cn)，每行一项..."
+                        class="w-full h-full bg-[#0A0D12] border border-[#232D3B] rounded-lg p-2.5 font-mono text-xs text-gray-200 focus:outline-none focus:border-cyan-500 transition resize-none leading-relaxed custom-scrollbar"></textarea>
+            </div>
+          </div>
+
+          <!-- 栏 2：代理规则 (Proxy) -->
+          <div class="panel-box rounded-xl p-3 flex flex-col relative h-[280px] md:h-[460px] bg-[#12171F]">
+            <!-- 栏标头 -->
+            <div class="flex items-center justify-between pb-2 border-b border-[#232D3B] text-xs">
+              <div class="flex items-center space-x-2">
+                <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                <span class="font-bold text-white">代理规则</span>
+                <span class="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20">
+                  {{ getCatLinesCount('proxy') }} 项
+                </span>
+                <span v-if="isCatDirty('proxy')" class="text-[10px] text-amber-400 font-mono">
+                  ● 已修改
+                </span>
+              </div>
+              <span class="text-[10px] text-gray-500 font-mono">每行一项</span>
+            </div>
+
+            <!-- 同一个大内容框，随时点击开始编写 -->
+            <div class="flex-1 min-h-0 relative mt-2">
+              <textarea v-model="categoryTexts['proxy']" 
+                        spellcheck="false"
+                        placeholder="输入代理域名 (如 geosite:google, openai.com) 或 IP (如 geoip:hk)，每行一项..."
+                        class="w-full h-full bg-[#0A0D12] border border-[#232D3B] rounded-lg p-2.5 font-mono text-xs text-gray-200 focus:outline-none focus:border-emerald-500 transition resize-none leading-relaxed custom-scrollbar"></textarea>
+            </div>
+          </div>
+
+          <!-- 栏 3：拦截规则 (Block) -->
+          <div class="panel-box rounded-xl p-3 flex flex-col relative h-[280px] md:h-[460px] bg-[#12171F]">
+            <!-- 栏标头 -->
+            <div class="flex items-center justify-between pb-2 border-b border-[#232D3B] text-xs">
+              <div class="flex items-center space-x-2">
+                <span class="w-2 h-2 rounded-full bg-rose-400"></span>
+                <span class="font-bold text-white">拦截规则</span>
+                <span class="text-[10px] font-mono text-rose-400 bg-rose-500/10 px-1.5 py-0.2 rounded border border-rose-500/20">
+                  {{ getCatLinesCount('block') }} 项
+                </span>
+                <span v-if="isCatDirty('block')" class="text-[10px] text-amber-400 font-mono">
+                  ● 已修改
+                </span>
+              </div>
+              <span class="text-[10px] text-gray-500 font-mono">每行一项</span>
+            </div>
+
+            <!-- 同一个大内容框，随时点击开始编写 -->
+            <div class="flex-1 min-h-0 relative mt-2">
+              <textarea v-model="categoryTexts['block']" 
+                        spellcheck="false"
+                        placeholder="输入拦截广告/恶意域名 (如 geosite:category-ads-all)，每行一项..."
+                        class="w-full h-full bg-[#0A0D12] border border-[#232D3B] rounded-lg p-2.5 font-mono text-xs text-gray-200 focus:outline-none focus:border-rose-500 transition resize-none leading-relaxed custom-scrollbar"></textarea>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- 3个规则的全局更改确认或取消 (位于3个方框外的正下方居中，仅保留撤销与应用按钮) -->
+        <transition name="dropdown-anim">
+          <div v-if="hasRoutingChanges" class="flex justify-center items-center space-x-2.5 pt-2 pb-1">
+            <button @click="revertAllCategories" :disabled="savingAllCategories"
+                    class="h-7 px-3.5 rounded-lg bg-[#12171F] hover:bg-[#1C2432] text-gray-300 hover:text-white transition flex items-center space-x-1.5 text-xs border border-[#232D3B] shadow-sm"
+                    title="撤销所有未保存的修改">
+              <i class="ph-bold ph-arrow-counter-clockwise text-xs"></i>
+              <span>撤销</span>
+            </button>
+            <button @click="saveAllCategories" :disabled="savingAllCategories"
+                    class="h-7 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition flex items-center space-x-1.5 text-xs font-medium shadow-sm disabled:opacity-50">
+              <i class="ph-bold text-xs" :class="savingAllCategories ? 'ph-circle-notch animate-spin' : 'ph-check'"></i>
+              <span>{{ savingAllCategories ? '应用中...' : '应用' }}</span>
+            </button>
+          </div>
+        </transition>
+      </div>
+
+    </main>
+
+    <!-- 底部抽屉式可调高度实时日志面板 (v2rayN access log 风格，带点击外部自动收回) -->
+    <div ref="drawerRef" 
+         @click.stop
+         class="fixed bottom-0 left-0 right-0 z-40 bg-[#12171F] border-t border-[#232D3B] shadow-2xl flex flex-col transition-all duration-75"
+         :style="{ height: drawerExpanded ? drawerHeight + 'px' : '34px' }">
+      
+      <!-- 拖拽把手 (仅展开有效) -->
+      <div v-if="drawerExpanded" 
+           @mousedown="startResize"
+           class="resize-handle h-2 w-full flex items-center justify-center hover:bg-emerald-500/10 transition">
+        <div class="bar w-12 h-1 rounded-full bg-gray-700 transition"></div>
+      </div>
+
+      <!-- 抽屉头部状态栏 (整条整行点击均可直接展开/收起) -->
+      <div class="h-8 px-4 flex items-center justify-between text-xs border-b border-[#232D3B]/80 bg-[#12171F] select-none gap-3 cursor-pointer hover:bg-[#151B24] transition-colors"
+           @click="drawerExpanded = !drawerExpanded">
+        
+        <!-- 左侧标识与折叠时最新日志流水 (直接叫“日志”，无多余access标签，倒序最新置顶) -->
+        <div class="flex items-center space-x-2 flex-1 min-w-0">
+          <i class="ph-bold ph-terminal-window text-emerald-400 text-sm flex-shrink-0"></i>
+          <span class="font-semibold text-gray-200 flex-shrink-0">日志</span>
+          
+          <!-- 折叠状态下自适应铺满整行展示最新连接或操作日志 (logs[0] 最新) -->
+          <span v-if="!drawerExpanded && logs.length > 0" class="flex-1 min-w-0 font-mono text-gray-400 text-[11px] truncate">
+            {{ latestLogText || logs[0]?.raw || logs[0] }}
+          </span>
+        </div>
+
+        <!-- 展开工具栏 (通过 @click.stop 阻止头部折叠触发) -->
+        <div v-if="drawerExpanded" class="flex items-center space-x-2 flex-shrink-0" @click.stop>
+          <!-- 快速分类过滤胶囊 (无多余access标签，面向功能视角) -->
+          <div class="flex items-center space-x-1 text-[11px]">
+            <button @click="logFilter = ''" class="px-2 py-0.5 rounded transition" :class="logFilter === '' ? 'bg-gray-700 text-white font-medium' : 'text-gray-500 hover:text-gray-300'">全部</button>
+            <button @click="logFilter = 'system'" class="px-2 py-0.5 rounded transition" :class="logFilter === 'system' ? 'bg-purple-600/30 text-purple-300 font-bold' : 'text-gray-500 hover:text-gray-300'">操作</button>
+            <button @click="logFilter = 'proxy'" class="px-2 py-0.5 rounded transition" :class="logFilter === 'proxy' ? 'bg-emerald-600/30 text-emerald-400 font-bold' : 'text-gray-500 hover:text-gray-300'">代理</button>
+            <button @click="logFilter = 'direct'" class="px-2 py-0.5 rounded transition" :class="logFilter === 'direct' ? 'bg-cyan-600/30 text-cyan-400 font-bold' : 'text-gray-500 hover:text-gray-300'">直连</button>
+          </div>
+
+          <!-- 搜索输入 -->
+          <input v-model="logFilter" type="text" placeholder="过滤日志..." 
+                 class="w-28 bg-[#0A0D12] border border-[#232D3B] rounded px-2 py-0.5 text-[11px] font-mono text-gray-200 focus:outline-none focus:border-emerald-500">
+
+          <!-- 自动滚动开关 -->
+          <button @click="autoScroll = !autoScroll" 
+                  class="px-1.5 py-0.5 rounded text-[11px] border transition flex items-center space-x-1"
+                  :class="autoScroll ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' : 'bg-[#0A0D12] text-gray-500 border-[#232D3B]'"
+                  :title="autoScroll ? '新日志自动滚动已开启' : '新日志自动滚动已暂停'">
+            <i class="ph-bold text-[10px]" :class="autoScroll ? 'ph-arrow-line-up' : 'ph-pause'"></i>
+            <span>自动滚动</span>
+          </button>
+
+          <!-- 清屏 -->
+          <button @click="clearLogs" class="p-1 rounded hover:bg-[#1C2432] text-gray-400 hover:text-white transition" title="清空日志">
+            <i class="ph-bold ph-trash text-xs"></i>
+          </button>
+        </div>
+
+        <!-- 展开/收起小箭头按钮 -->
+        <button class="p-1 rounded hover:bg-[#1C2432] text-gray-400 hover:text-white transition flex-shrink-0">
+          <i class="ph-bold text-xs" :class="drawerExpanded ? 'ph-caret-down' : 'ph-caret-up'"></i>
+        </button>
+      </div>
+
+      <!-- 日志列表主体 (高保真解析操作日志与连接流水) -->
+      <div v-show="drawerExpanded" 
+           ref="logContainer"
+           class="flex-1 bg-[#0A0D12] overflow-y-auto p-2.5 font-mono text-[11px] space-y-0.5 select-text">
+        <div v-if="logStreamError" role="status" class="text-amber-300 px-2 py-2">{{ logStreamError }}</div>
+        <div v-else-if="parsedFilteredLogs.length === 0" class="text-gray-600 text-center py-6">
+          暂无日志流水数据...
+        </div>
+
+        <div v-for="entry in parsedFilteredLogs" :key="entry.id || entry.idx" class="leading-relaxed hover:bg-[#12171F] px-1.5 py-0.5 rounded transition">
+          <!-- 格式 1：系统/分流操作日志 -->
+          <template v-if="entry.parsed && entry.parsed.type === 'op'">
+            <span class="text-gray-500 mr-2">{{ entry.parsed.time }}</span>
+            <span class="px-1.5 py-0.2 rounded font-bold text-[10px] mr-2"
+                  :class="entry.parsed.tag === 'SYSTEM' ? 'bg-purple-500/15 text-purple-300 border border-purple-500/30' : 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30'">
+              [{{ entry.parsed.tag }}]
+            </span>
+            <span class="text-gray-200 font-sans text-xs">{{ entry.parsed.msg }}</span>
+          </template>
+
+          <!-- 格式 2：网络连接流水日志 -->
+          <template v-else-if="entry.parsed && entry.parsed.type === 'conn'">
+            <span class="text-gray-500 mr-2">{{ entry.parsed.time }}</span>
+            <span class="text-gray-400 mr-1.5">{{ entry.parsed.from }}</span>
+            <span class="text-gray-600 mr-1.5">accepted</span>
+            <span class="text-amber-200 mr-2 font-medium">{{ entry.parsed.target }}</span>
+            <span class="px-1.5 py-0.2 rounded font-bold text-[10px]"
+                  :class="{
+                    'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30': entry.parsed.routeTag === 'proxy',
+                    'bg-cyan-500/15 text-cyan-400 border border-cyan-500/30': entry.parsed.routeTag === 'direct',
+                    'bg-rose-500/15 text-rose-400 border border-rose-500/30': entry.parsed.routeTag === 'block'
+                  }">
+              {{ entry.parsed.routeRaw }}
+            </span>
+          </template>
+
+          <!-- 格式 3：兜底原始行 -->
+          <template v-else>
+            <span class="text-gray-300">{{ entry.raw }}</span>
+          </template>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 模态框：智能统一导入 (自动识别订阅链接 / 节点分享链接 / Base64) -->
+    <div v-if="openImportModal" role="dialog" aria-modal="true" aria-label="导入节点或订阅" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" @click.self="openImportModal = false">
+      <div class="panel-box rounded-xl w-full max-w-lg overflow-hidden shadow-2xl bg-[#12171F]" @click.stop>
+        <div class="px-5 py-3 border-b border-[#232D3B] flex items-center justify-between">
+          <div class="flex items-center space-x-2">
+            <i class="ph-bold ph-plus-circle text-emerald-400 text-base"></i>
+            <h3 class="font-semibold text-sm text-white">导入节点或订阅</h3>
+          </div>
+          <button @click="openImportModal = false" class="text-gray-400 hover:text-white">
+            <i class="ph-bold ph-x text-base"></i>
+          </button>
+        </div>
+
+        <div class="p-4 space-y-3">
+          <!-- 极简自动识别提示 (仅在识别到内容时展示简短微标) -->
+          <div class="flex items-center justify-between text-xs">
+            <div class="flex items-center space-x-2">
+              <span class="text-gray-400 text-[11px]">粘贴内容</span>
+              <button @click="pasteFromClipboard"
+                      class="text-[10px] text-gray-500 hover:text-emerald-400 transition flex items-center space-x-0.5 px-1.5 py-0.5 rounded border border-[#232D3B] hover:border-emerald-500/30 bg-[#0A0D12]"
+                      title="从剪贴板粘贴">
+                <i class="ph-bold ph-clipboard-text text-xs"></i>
+                <span>粘贴</span>
+              </button>
+            </div>
+            <div class="text-[10px] font-mono">
+              <span v-if="detectedImportType === 'subscription'" class="text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 font-medium">
+                ✦ 识别为订阅
+              </span>
+              <span v-else-if="detectedImportType === 'nodes'" class="text-cyan-400 bg-cyan-500/10 px-1.5 py-0.5 rounded border border-cyan-500/20 font-medium">
+                ✦ 识别为节点
+              </span>
+            </div>
+          </div>
+
+          <textarea ref="importTextarea" v-model="importInput" rows="5" 
+                    placeholder="粘贴订阅链接 (https://...) 或 节点链接 (vless://, trojan://, ss://, Base64 等)"
+                    class="w-full bg-[#0A0D12] border border-[#232D3B] rounded-lg p-2.5 font-mono text-xs text-gray-200 focus:outline-none focus:border-emerald-500 transition"></textarea>
+
+          <!-- 极简备注名称输入框 -->
+          <div>
+            <label class="block text-[11px] text-gray-400 mb-1">备注名称</label>
+            <input v-model="importCustomName" type="text" placeholder="可选"
+                   class="w-full bg-[#0A0D12] border border-[#232D3B] rounded-lg px-3 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-emerald-500 transition">
+          </div>
+        </div>
+
+        <div class="px-4 py-3 bg-[#0A0D12] border-t border-[#232D3B] flex justify-end space-x-2">
+          <button @click="openImportModal = false" class="px-3 py-1.5 text-xs text-gray-400 hover:text-white transition">取消</button>
+          <button @click="submitUnifiedImport" :disabled="importing" 
+                  class="px-4 py-1.5 rounded-md bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium transition disabled:opacity-50 shadow-sm flex items-center space-x-1.5">
+            <i v-if="importing" class="ph-bold ph-circle-notch animate-spin text-xs"></i>
+            <span>{{ importing ? '正在处理导入...' : '立即导入' }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 模态框：代理服务端口设置 -->
+    <div v-if="showPortModal" role="dialog" aria-modal="true" aria-label="代理服务端口设置" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" @click.self="showPortModal = false">
+      <div class="panel-box rounded-xl w-full max-w-sm overflow-hidden shadow-2xl bg-[#12171F]" @click.stop>
+        <div class="px-5 py-3.5 border-b border-[#232D3B] flex items-center justify-between">
+          <div class="flex items-center space-x-2">
+            <i class="ph-bold ph-faders text-emerald-400 text-base"></i>
+            <h3 class="font-semibold text-sm text-white">代理服务端口设置</h3>
+          </div>
+          <button @click="showPortModal = false" class="text-gray-400 hover:text-white transition">
+            <i class="ph-bold ph-x text-base"></i>
+          </button>
+        </div>
+
+        <div class="p-4 space-y-3.5 text-xs">
+          <div class="space-y-3">
+            <div>
+              <label class="block text-[11px] text-gray-300 font-medium mb-1">SOCKS5 直通端口</label>
+              <div class="relative flex items-center">
+                <input v-model.number="portForm.socks" type="number" min="1" max="65535"
+                       placeholder="20170"
+                       class="w-full bg-[#0A0D12] border rounded-lg pl-3 pr-20 py-1.5 font-mono text-xs text-gray-200 focus:outline-none transition [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                       :class="getPortValidationError('socks') ? 'border-rose-500/70 focus:border-rose-500' : 'border-[#232D3B] focus:border-emerald-500'">
+                <!-- 输入框末尾实时校验提示 -->
+                <div class="absolute right-2.5 flex items-center space-x-1 text-[11px] pointer-events-none">
+                  <span v-if="getPortValidationError('socks')" class="text-rose-400 font-sans text-[10px] flex items-center space-x-0.5">
+                    <i class="ph-bold ph-warning-circle text-xs"></i>
+                    <span>{{ getPortValidationError('socks') }}</span>
+                  </span>
+                  <span v-else class="text-emerald-400 flex items-center">
+                    <i class="ph-bold ph-check text-xs"></i>
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-[11px] text-gray-300 font-medium mb-1">HTTP 直通端口</label>
+              <div class="relative flex items-center">
+                <input v-model.number="portForm.http" type="number" min="1" max="65535"
+                       placeholder="20171"
+                       class="w-full bg-[#0A0D12] border rounded-lg pl-3 pr-20 py-1.5 font-mono text-xs text-gray-200 focus:outline-none transition [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                       :class="getPortValidationError('http') ? 'border-rose-500/70 focus:border-rose-500' : 'border-[#232D3B] focus:border-emerald-500'">
+                <!-- 输入框末尾实时校验提示 -->
+                <div class="absolute right-2.5 flex items-center space-x-1 text-[11px] pointer-events-none">
+                  <span v-if="getPortValidationError('http')" class="text-rose-400 font-sans text-[10px] flex items-center space-x-0.5">
+                    <i class="ph-bold ph-warning-circle text-xs"></i>
+                    <span>{{ getPortValidationError('http') }}</span>
+                  </span>
+                  <span v-else class="text-emerald-400 flex items-center">
+                    <i class="ph-bold ph-check text-xs"></i>
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-[11px] text-gray-300 font-medium mb-1">HTTP 规则分流端口</label>
+              <div class="relative flex items-center">
+                <input v-model.number="portForm.routing" type="number" min="1" max="65535"
+                       placeholder="20172"
+                       class="w-full bg-[#0A0D12] border rounded-lg pl-3 pr-20 py-1.5 font-mono text-xs text-gray-200 focus:outline-none transition [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                       :class="getPortValidationError('routing') ? 'border-rose-500/70 focus:border-rose-500' : 'border-[#232D3B] focus:border-emerald-500'">
+                <!-- 输入框末尾实时校验提示 -->
+                <div class="absolute right-2.5 flex items-center space-x-1 text-[11px] pointer-events-none">
+                  <span v-if="getPortValidationError('routing')" class="text-rose-400 font-sans text-[10px] flex items-center space-x-0.5">
+                    <i class="ph-bold ph-warning-circle text-xs"></i>
+                    <span>{{ getPortValidationError('routing') }}</span>
+                  </span>
+                  <span v-else class="text-emerald-400 flex items-center">
+                    <i class="ph-bold ph-check text-xs"></i>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="px-4 py-3 bg-[#0A0D12] border-t border-[#232D3B] flex items-center justify-between">
+          <button @click="resetDefaultPorts" class="text-[11px] text-gray-500 hover:text-amber-400 transition" title="重置为 20170 / 20171 / 20172">
+            恢复默认
+          </button>
+          <div class="flex items-center space-x-2">
+            <button @click="showPortModal = false" class="px-3 py-1.5 text-xs text-gray-400 hover:text-white transition">取消</button>
+            <button @click="submitPortUpdate" :disabled="savingPorts || !isPortFormValid"
+                    class="px-4 py-1.5 rounded-md bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium transition disabled:opacity-50 shadow-sm flex items-center space-x-1.5">
+              <i v-if="savingPorts" class="ph-bold ph-circle-notch animate-spin text-xs"></i>
+              <span>{{ savingPorts ? '应用中...' : '应用' }}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 模态框：通用主题化二次确认弹窗 (无浏览器原生弹窗) -->
+    <div v-if="confirmDialog.show" role="dialog" aria-modal="true" :aria-label="confirmDialog.title" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" @click.self="handleCancelAction">
+      <div class="panel-box rounded-xl w-full max-w-sm overflow-hidden shadow-2xl bg-[#12171F] border border-[#232D3B]" @click.stop>
+        
+        <!-- 弹窗标题 -->
+        <div class="px-5 py-3.5 border-b border-[#232D3B] flex items-center justify-between">
+          <div class="flex items-center space-x-2">
+            <div class="w-6 h-6 rounded-lg flex items-center justify-center"
+                 :class="confirmDialog.confirmType === 'danger' ? 'bg-rose-500/15 text-rose-400' : 'bg-emerald-500/15 text-emerald-400'">
+              <i class="ph-bold text-sm" :class="confirmDialog.confirmType === 'danger' ? 'ph-trash' : 'ph-info'"></i>
+            </div>
+            <h3 class="font-semibold text-sm text-white">{{ confirmDialog.title }}</h3>
+          </div>
+          <button @click="handleCancelAction" class="text-gray-400 hover:text-white transition">
+            <i class="ph-bold ph-x text-base"></i>
+          </button>
+        </div>
+
+        <!-- 弹窗主体内容 -->
+        <div class="p-5 space-y-3 text-xs">
+          <p class="text-gray-200 text-sm font-medium leading-normal">
+            {{ confirmDialog.message }}
+          </p>
+          <p v-if="confirmDialog.detail" class="text-gray-400 text-xs leading-relaxed">
+            {{ confirmDialog.detail }}
+          </p>
+
+          <!-- 可选复选框选项 (如删除订阅时选择是否一并删除关联节点) -->
+          <label v-if="confirmDialog.checkboxLabel" class="flex items-start space-x-2 pt-1 cursor-pointer select-none group">
+            <input v-model="confirmDialog.checkboxValue" type="checkbox"
+                   class="mt-0.5 rounded border-[#232D3B] bg-[#0A0D12] text-rose-600 focus:ring-0 focus:outline-none accent-rose-600">
+            <span class="text-gray-300 group-hover:text-white transition text-xs leading-tight">
+              {{ confirmDialog.checkboxLabel }}
+            </span>
+          </label>
+        </div>
+
+        <!-- 弹窗底部操作按钮 -->
+        <div class="px-4 py-3 bg-[#0A0D12] border-t border-[#232D3B] flex justify-end space-x-2">
+          <button @click="handleCancelAction" 
+                  class="px-3.5 py-1.5 text-xs text-gray-400 hover:text-white hover:bg-[#1C2432] rounded-md transition">
+            取消
+          </button>
+          <button @click="handleConfirmAction" 
+                  class="px-4 py-1.5 rounded-md text-xs font-medium transition shadow-sm"
+                  :class="confirmDialog.confirmType === 'danger' 
+                    ? 'bg-rose-600 hover:bg-rose-500 text-white' 
+                    : 'bg-emerald-600 hover:bg-emerald-500 text-white'">
+            {{ confirmDialog.confirmText }}
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

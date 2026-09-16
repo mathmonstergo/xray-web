@@ -1,0 +1,8 @@
+{
+  "default_outbound": "proxy",
+  "rules": [
+    {"id": "private-network", "name": "局域网直连", "type": "ip", "values": ["geoip:private"], "action": "direct", "enabled": true},
+    {"id": "china-domains", "name": "中国大陆域名直连", "type": "domain", "values": ["geosite:cn"], "action": "direct", "enabled": true},
+    {"id": "china-addresses", "name": "中国大陆 IP 直连", "type": "ip", "values": ["geoip:cn"], "action": "direct", "enabled": true}
+  ]
+}
