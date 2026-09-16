@@ -6,7 +6,7 @@
 
 不依赖 sing-box，不需要 Docker 或 Node.js，不需要 root。
 
-> ⚠️ 本项目仅针对个人自用环境开发，可能存在未覆盖的协议组合或不兼容的边界情况。好在整个项目结构简单、代码量不大，拉下来让 AI agent 根据你的需求改源码还是很方便的。
+> ⚠️ 本项目仅针对个人自用环境轻量开发，可能存在未覆盖的协议组合或不兼容的边界情况。要用的话拉下来让 AI agent 根据你的需求改源码还是很方便的。本项目在pi中使用gemini-3.8-flash-high编写，gpt6-astra-medium进行review，耗时2天左右。
 
 ## 功能
 
@@ -16,6 +16,20 @@
 - **分流**：直连 / 代理 / 拦截三栏编辑，支持 domain、IP、CIDR、geosite、geoip
 - **安全**：默认仅监听 127.0.0.1，校验 Host/Origin，可选 Basic Auth
 - 配置变更先校验再原子替换，失败自动回滚；测速使用独立临时核心，不影响当前连接
+
+## UI界面
+
+<p align="center">
+  <img src="assets/节点界面.png" alt="节点界面" width="720">
+  <br>
+  <em>图 1：项目主界面</em>
+</p>
+
+<p align="center">
+  <img src="assets/规则界面.png" alt="规则界面" width="720">
+  <br>
+  <em>图 2：规则配置页</em>
+</p>
 
 ## 快速开始
 
@@ -37,15 +51,8 @@ systemctl --user daemon-reload
 systemctl --user enable --now xray-web
 ```
 
-打开 http://127.0.0.1:2017 ，粘贴链接，选择节点。
-
-终端代理：
-
-```bash
-export http_proxy=http://127.0.0.1:20171
-export https_proxy=http://127.0.0.1:20171
-export all_proxy=socks5://127.0.0.1:20170
-```
+打开 http://127.0.0.1:2017 ，右上角导入订阅/节点，双击节点启用代理。
+更多操作自行体验~
 
 ## 端口
 
