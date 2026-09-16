@@ -1,5 +1,6 @@
 """Bounded systemd commands and atomic Xray configuration installation."""
 
+import copy
 import json
 import os
 from pathlib import Path
@@ -48,8 +49,24 @@ class XrayRuntime:
 
     def validate(self, candidate):
         with tempfile.TemporaryDirectory(prefix="xray-web-check-") as directory:
+            if isinstance(candidate, (str, bytes)):
+                try:
+                    test_candidate = json.loads(candidate)
+                except Exception:
+                    test_candidate = candidate
+            else:
+                test_candidate = copy.deepcopy(candidate)
+
+            if isinstance(test_candidate, dict):
+                log_cfg = test_candidate.get("log")
+                if isinstance(log_cfg, dict):
+                    test_candidate["log"] = {**log_cfg, "access": "none", "error": "none"}
+                elif log_cfg is None:
+                    test_candidate["log"] = {"access": "none", "error": "none"}
+
             path = Path(directory) / "config.json"
-            atomic_write_bytes(path, (json.dumps(candidate) + "\n").encode(), mode=0o600)
+            content = (json.dumps(test_candidate) + "\n").encode() if not isinstance(test_candidate, (bytes, bytearray)) else test_candidate
+            atomic_write_bytes(path, content, mode=0o600)
             self.run([config.XRAY_BIN, "run", "-test", "-config", str(path)])
 
     def install(self, path, content, *, private=False):

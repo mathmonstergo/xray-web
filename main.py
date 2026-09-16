@@ -499,8 +499,13 @@ def clear_logs(type: Literal["access", "error"] = "access"):
     try:
         path = get_log_file_path(type)
         if os.path.exists(path):
-            with open(path, "w", encoding="utf-8"):
-                pass
+            try:
+                with open(path, "w", encoding="utf-8"):
+                    pass
+            except PermissionError:
+                res = subprocess.run(["sudo", "-n", "truncate", "-s", "0", str(path)], capture_output=True, text=True)
+                if res.returncode != 0:
+                    raise
         return {"success": True, "message": f"{type}.log 已清空"}
     except OSError as exc:
         raise HTTPException(status_code=500, detail="无法清空日志，请检查文件写权限") from exc

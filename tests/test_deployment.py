@@ -50,6 +50,18 @@ class DeploymentTests(unittest.TestCase):
         files = prepare(self.root / "deploy")
         XrayRuntime().validate(json.loads(files[0].read_text()))
 
+    @unittest.skipUnless(Path(config.XRAY_BIN).is_file(), "Xray binary is not installed")
+    def test_validation_ignores_restricted_log_paths(self):
+        cfg = {
+            "log": {
+                "loglevel": "warning",
+                "access": "/root/cannot_write_access.log",
+                "error": "/root/cannot_write_error.log",
+            },
+            "outbounds": [{"protocol": "freedom"}],
+        }
+        XrayRuntime().validate(cfg)
+
     def test_export_excludes_history_runtime_secrets_and_symlinks(self):
         for name, content in {
             "README.md": "public", "main.py": "public", ".env.example": "WEB_PASSWORD=",
