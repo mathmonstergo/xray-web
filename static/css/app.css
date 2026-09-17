@@ -174,3 +174,157 @@ input[type="number"] {
   opacity: 0;
   transform: translateY(-6px) scale(0.98);
 }
+
+/* ================= 纯净浅色模式 (Light Mode) ================= */
+html.light {
+  color-scheme: light;
+}
+
+html.light body {
+  background-color: #F6F8FA !important;
+  color: #1F2328 !important;
+}
+
+/* 核心面板卡片 */
+html.light .panel-box {
+  background-color: #FFFFFF !important;
+  border-color: #D0D7DE !important;
+  box-shadow: 0 1px 3px rgba(31, 35, 40, 0.04);
+}
+
+/* 列表行与交互 */
+html.light .list-row {
+  background-color: #FFFFFF !important;
+  border-color: #E2E8F0 !important;
+}
+html.light .list-row:hover {
+  background-color: #F8FAFC !important;
+  border-color: #CBD5E1 !important;
+}
+html.light .list-row-active {
+  background-color: #F0FDF4 !important;
+  border-color: rgba(16, 185, 129, 0.6) !important;
+  box-shadow: 0 0 14px -2px rgba(16, 185, 129, 0.2) !important;
+}
+html.light .list-row.\!border-emerald-500\/80 {
+  background-color: #F0FDF4 !important;
+  border-color: rgba(16, 185, 129, 0.7) !important;
+}
+
+/* 顶栏 Header 与边框 */
+html.light header {
+  background-color: rgba(255, 255, 255, 0.9) !important;
+  border-color: #D0D7DE !important;
+}
+
+/* 统一重载暗色背景内联类 */
+html.light [class*="bg-[#0A0D12]"] {
+  background-color: #F6F8FA !important;
+}
+html.light [class*="bg-[#12171F]"] {
+  background-color: #FFFFFF !important;
+}
+html.light [class*="bg-[#161D26]"],
+html.light [class*="bg-[#161D27]"],
+html.light [class*="bg-[#1C2432]"],
+html.light [class*="hover:bg-[#1C2432]"]:hover,
+html.light [class*="hover:bg-[#161D27]"]:hover,
+html.light [class*="hover:bg-[#12171F]"]:hover {
+  background-color: #F3F4F6 !important;
+}
+
+/* 统一重载暗色边框内联类 */
+html.light [class*="border-[#232D3B]"] {
+  border-color: #D0D7DE !important;
+}
+
+/* 文本颜色重载 (保留彩色按钮上的白色文字) */
+html.light .text-white:not(.bg-emerald-600):not(.bg-rose-600) {
+  color: #1F2328 !important;
+}
+html.light .text-gray-200 { color: #1F2328 !important; }
+html.light .text-gray-300 { color: #24292F !important; }
+html.light .text-gray-400 { color: #57606A !important; }
+html.light .text-gray-500 { color: #656D76 !important; }
+html.light .text-gray-600 { color: #8C959F !important; }
+
+/* 输入框与文本域 */
+html.light input[type="text"],
+html.light input[type="number"],
+html.light textarea {
+  background-color: #FFFFFF !important;
+  color: #1F2328 !important;
+  border-color: #D0D7DE !important;
+}
+html.light input::placeholder,
+html.light textarea::placeholder {
+  color: #8C959F !important;
+}
+html.light input:focus,
+html.light textarea:focus {
+  border-color: #10B981 !important;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.15) !important;
+}
+
+/* 导航 Tab */
+html.light nav {
+  background-color: #EAEEF2 !important;
+  border-color: #D0D7DE !important;
+}
+html.light nav button.text-white {
+  background-color: #FFFFFF !important;
+  color: #1F2328 !important;
+  box-shadow: 0 1px 2px rgba(31, 35, 40, 0.06) !important;
+}
+
+/* 订阅标签激活与冻结项 */
+html.light [data-sub-id].bg-\[\#1C2432\] {
+  background-color: #FFFFFF !important;
+  color: #1F2328 !important;
+  border-color: #D0D7DE !important;
+  box-shadow: 0 1px 2px rgba(31, 35, 40, 0.05) !important;
+}
+html.light .sub-tabs-strip button.bg-emerald-950\/40 {
+  background-color: #DCFCE7 !important;
+  color: #15803D !important;
+  border-color: #86EFAC !important;
+}
+
+/* 抽屉日志面板 */
+html.light [ref="drawerRef"] {
+  background-color: #FFFFFF !important;
+  border-color: #D0D7DE !important;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
+}
+html.light [ref="drawerRef"] > div:nth-child(2) {
+  background-color: #FFFFFF !important;
+}
+html.light [ref="logContainer"] {
+  background-color: #F6F8FA !important;
+}
+html.light [ref="logContainer"] .text-gray-200 {
+  color: #1F2328 !important;
+}
+html.light [ref="logContainer"] .hover\:bg-\[\#12171F\]:hover {
+  background-color: #EAEEF2 !important;
+}
+
+/* 模态框弹窗 */
+html.light [role="dialog"] .panel-box {
+  background-color: #FFFFFF !important;
+  border-color: #D0D7DE !important;
+  box-shadow: 0 16px 32px rgba(31, 35, 40, 0.15) !important;
+}
+html.light [role="dialog"] .bg-\[\#0A0D12\] {
+  background-color: #F6F8FA !important;
+  border-color: #D0D7DE !important;
+}
+
+/* 滚动条在浅色模式下的滑块颜色 */
+html.light .custom-scrollbar:hover::-webkit-scrollbar-thumb,
+html.light .custom-scrollbar:focus-within::-webkit-scrollbar-thumb,
+html.light .custom-scrollbar.is-scrolling::-webkit-scrollbar-thumb,
+html.light .sub-tabs-strip:hover::-webkit-scrollbar-thumb,
+html.light .sub-tabs-strip.is-scrolling::-webkit-scrollbar-thumb {
+  background-color: #CBD5E1;
+}

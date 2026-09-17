@@ -5,6 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="google" content="notranslate">
   <title>Xray 控制台</title>
+  <script>
+    (function() {
+      try {
+        var t = localStorage.getItem('xray_web_theme') || 'dark';
+        document.documentElement.className = t === 'light' ? 'light' : 'dark';
+      } catch (e) {}
+    })();
+  </script>
   <link rel="stylesheet" href="/static/css/tailwind.min.css">
   <link rel="stylesheet" href="/static/css/phosphor-bold.css">
   <link rel="stylesheet" href="/static/css/app.css?v=2.1.0">
@@ -165,6 +173,13 @@
               </div>
             </transition>
           </div>
+
+          <!-- 纯粹黑白日/夜主题切换按钮 -->
+          <button @click="toggleTheme" 
+                  class="h-7 w-7 flex items-center justify-center rounded-lg border border-[#232D3B] bg-[#0A0D12] hover:bg-[#161D27] text-gray-400 hover:text-white transition shadow-sm cursor-pointer"
+                  :title="isDark ? '切换至浅色模式' : '切换至深色模式'">
+            <i class="ph-bold text-xs" :class="isDark ? 'ph-sun text-gray-200' : 'ph-moon text-gray-800'"></i>
+          </button>
 
           <!-- 导入按钮 -->
           <button @click="openImportModal = true" 

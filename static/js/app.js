@@ -24,6 +24,23 @@ createApp({
     const bridgeIP = computed(() => service.value.bridge_ip || window.location.hostname || '127.0.0.1')
     const showCopyMenu = ref(false)
     const copyMenuRef = ref(null)
+    const isDark = ref(true)
+    if (typeof localStorage !== 'undefined') {
+      isDark.value = localStorage.getItem('xray_web_theme') !== 'light'
+    }
+
+    const toggleTheme = () => {
+      isDark.value = !isDark.value
+      const theme = isDark.value ? 'dark' : 'light'
+      if (typeof document !== 'undefined' && document.documentElement) {
+        document.documentElement.className = theme
+      }
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('xray_web_theme', theme)
+      }
+      showToast(isDark.value ? '已切换至深色模式' : '已切换至浅色模式', 'info', 1500)
+    }
+
     const toasts = ref([])
     const toastTimers = new Set()
     let nextId = 0
@@ -1435,6 +1452,7 @@ createApp({
     }
 
     return {
+      isDark, toggleTheme,
       confirmDialog, handleConfirmAction, handleCancelAction,
       showPortModal, savingPorts, portFormError, portForm, openPortModal, resetDefaultPorts, submitPortUpdate,
       getPortValidationError, isPortFormValid, getNodeFeatureTag,
