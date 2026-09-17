@@ -6,7 +6,7 @@
 
 不依赖 sing-box，不需要 Docker 或 Node.js，不需要 root。
 
-> ⚠️ 本项目仅针对个人自用Windows+WSL环境轻量开发，可能存在未覆盖的协议组合或不兼容的边界情况。要用的话拉下来让 AI agent 根据你的需求改源码还是很方便的。本项目在pi中使用gemini-3.8-flash-high编写，gpt6-astra-medium进行review，耗时2天左右。
+> ⚠️ 本项目仅针对个人自用Windows+WSL环境+自建3x-ui面板导出的订阅/节点轻量开发，可能存在未覆盖的协议组合或不兼容的边界情况。要用的话拉下来让 AI agent 根据你的需求改源码还是很方便的。本项目在pi中使用gemini-3.8-flash-high编写，gpt6-astra-medium进行review，耗时2天左右。
 
 ## 功能
 
@@ -16,7 +16,6 @@
 - **分流**：直连 / 代理 / 拦截三栏编辑，支持 domain、IP、CIDR、geosite、geoip
 - **安全**：默认仅监听 127.0.0.1，严格校验 Host/Origin，阻断跨站请求，可选 Basic Auth
 - **运行模式**：支持 systemd 服务模式与内置进程守护模式（`XRAY_RUNTIME_MODE=process`，零 systemd 依赖，适于 Docker / WSL1）
-- **真·轻量化**：纯静态分发，预编译 ~30KB 静态样式，无前端 JIT 编译与 FOUC；后端配置原子事务替换，失败自动回滚；测速物理隔离于独立临时核心，绝不干扰当前网络连接
 
 ## UI界面
 
