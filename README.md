@@ -6,7 +6,7 @@
 
 不依赖 sing-box，不需要 Docker 或 Node.js，不需要 root。
 
-> ⚠️ 本项目仅针对个人自用环境轻量开发，可能存在未覆盖的协议组合或不兼容的边界情况。要用的话拉下来让 AI agent 根据你的需求改源码还是很方便的。本项目在pi中使用gemini-3.8-flash-high编写，gpt6-astra-medium进行review，耗时2天左右。
+> ⚠️ 本项目仅针对个人自用Windows+WSL环境轻量开发，可能存在未覆盖的协议组合或不兼容的边界情况。要用的话拉下来让 AI agent 根据你的需求改源码还是很方便的。本项目在pi中使用gemini-3.8-flash-high编写，gpt6-astra-medium进行review，耗时2天左右。
 
 ## 功能
 
