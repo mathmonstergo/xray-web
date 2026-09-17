@@ -14,8 +14,9 @@
 - **传输**：TCP/RAW、WS、gRPC、HTTPUpgrade、XHTTP/SplitHTTP，保留 TLS、Reality、flow、XHTTP extra 等字段
 - **测速**：Real Ping 延迟 + 流式下行采样，SSE 实时刷新
 - **分流**：直连 / 代理 / 拦截三栏编辑，支持 domain、IP、CIDR、geosite、geoip
-- **安全**：默认仅监听 127.0.0.1，校验 Host/Origin，可选 Basic Auth
-- 配置变更先校验再原子替换，失败自动回滚；测速使用独立临时核心，不影响当前连接
+- **安全**：默认仅监听 127.0.0.1，严格校验 Host/Origin，阻断跨站请求，可选 Basic Auth
+- **运行模式**：支持 systemd 服务模式与内置进程守护模式（`XRAY_RUNTIME_MODE=process`，零 systemd 依赖，适于 Docker / WSL1）
+- **真·轻量化**：纯静态分发，预编译 ~30KB 静态样式，无前端 JIT 编译与 FOUC；后端配置原子事务替换，失败自动回滚；测速物理隔离于独立临时核心，绝不干扰当前网络连接
 
 ## UI界面
 

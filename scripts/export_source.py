@@ -8,7 +8,7 @@ import zipfile
 PROJECT = Path(__file__).resolve().parents[1]
 TOP_LEVEL = {".gitignore", ".env.example", "README.md", "requirements.txt", "requirements-dev.txt", "config.py", "main.py", "LICENSE", "THIRD_PARTY_NOTICES.md"}
 EXTENSIONS = {
-    "core": {".py"}, "scripts": {".py", ".sh"}, "service": {".service"},
+    "core": {".py"}, "routers": {".py"}, "scripts": {".py", ".sh", ".cjs"}, "service": {".service"},
     "static": {".html", ".js", ".css", ".woff", ".woff2"},
     "tests": {".py", ".cjs"}, "defaults": {".json"}, ".github/workflows": {".yml", ".yaml"},
 }

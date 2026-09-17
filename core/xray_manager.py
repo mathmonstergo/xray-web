@@ -12,7 +12,7 @@ from core.store import store
 from core.routing_manager import routing_manager
 from core.speedtest import test_node_delay, test_node_speed
 from core.persistence import atomic_write_bytes
-from core.runtime import XrayRuntime
+from core.runtime import XrayRuntime, create_runtime
 
 def get_local_bridge_ip() -> str:
     """获取本机首选局域网桥接 IP（例如 WSL 桥接给宿主机的 IP）"""
@@ -26,18 +26,12 @@ def get_local_bridge_ip() -> str:
         return '127.0.0.1'
 
 class XrayManager:
-    @staticmethod
-    def get_service_status() -> Dict[str, Any]:
-        """获取 systemd xray 服务的运行状态与路由架构"""
+    @classmethod
+    def get_service_status(cls) -> Dict[str, Any]:
+        """获取 Xray 核心运行状态与路由架构（适配 systemd 或独立进程）"""
         is_active = False
         try:
-            res = subprocess.run(
-                ["systemctl", *(["--user"] if config.XRAY_SYSTEMD_USER else []), "is-active", config.XRAY_SERVICE_NAME],
-                capture_output=True,
-                text=True,
-                timeout=config.COMMAND_TIMEOUT,
-            )
-            is_active = (res.stdout.strip() == "active")
+            is_active = cls._runtime.is_active()
         except Exception:
             pass
 
@@ -127,7 +121,7 @@ class XrayManager:
         return test_node_speed(node_id, persist=persist, on_progress=on_progress)
 
     _operation_lock = threading.RLock()
-    _runtime = XrayRuntime()
+    _runtime = create_runtime()
 
     @classmethod
     def restart_service(cls):
