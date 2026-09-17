@@ -73,3 +73,27 @@ class APITests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["tested"], 0)
         test.assert_not_called()
+
+    def test_reimporting_same_subscription_does_not_duplicate_nodes(self):
+        reality_link_1 = "vless://11111111-1111-4111-8111-111111111111@192.0.2.10:443?encryption=none&security=reality&pbk=xN2pTxbx0RR9YHayUL9madREQuc8v2UtBePPTxFO8ig&sid=1111&sni=example.com#Node1"
+        reality_link_2 = "vless://11111111-1111-4111-8111-111111111111@192.0.2.10:443?encryption=none&security=reality&pbk=xN2pTxbx0RR9YHayUL9madREQuc8v2UtBePPTxFO8ig&sid=2222&sni=example.com#Node1"
+
+        with patch.object(main.SubscriptionManager, "fetch_subscription", return_value=reality_link_1):
+            res1 = self.client.post("/api/nodes/import", json={"text": "https://sub.example/link"})
+            self.assertEqual(res1.status_code, 200)
+
+        self.assertEqual(len(self.store.get_subscriptions()), 1)
+        self.assertEqual(len(self.store.get_nodes()), 1)
+        first_id = self.store.get_nodes()[0]["id"]
+
+        with patch.object(main.SubscriptionManager, "fetch_subscription", return_value=reality_link_2):
+            res2 = self.client.post("/api/nodes/import", json={"text": "https://sub.example/link"})
+            self.assertEqual(res2.status_code, 200)
+
+        self.assertEqual(len(self.store.get_subscriptions()), 1)
+        self.assertEqual(len(self.store.get_nodes()), 1)
+        self.assertEqual(self.store.get_nodes()[0]["id"], first_id)
+        self.assertEqual(
+            self.store.get_nodes()[0]["outbound"]["streamSettings"]["realitySettings"]["shortId"],
+            "2222"
+        )

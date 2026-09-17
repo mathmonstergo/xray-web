@@ -15,6 +15,11 @@ def node_signature(node):
     """Credentials and transport settings distinguish nodes sharing an endpoint."""
     outbound = deepcopy(node.get("outbound", {}))
     outbound.pop("tag", None)
+    stream = outbound.get("streamSettings")
+    if isinstance(stream, dict):
+        reality = stream.get("realitySettings")
+        if isinstance(reality, dict):
+            reality.pop("shortId", None)
     return (
         node.get("address", "").strip().lower(),
         int(node.get("port", 0)),

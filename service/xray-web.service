@@ -10,6 +10,7 @@ EnvironmentFile=@ENV@
 ExecStart=@PYTHON@ @MAIN@
 Restart=on-failure
 RestartSec=3
+TimeoutStopSec=2
 Environment=PYTHONUNBUFFERED=1
 
 [Install]

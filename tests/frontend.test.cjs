@@ -18,6 +18,12 @@ function setup(fetch) {
     document: { body: { style: {}, classList: { toggle() {}, remove() {} } }, addEventListener() {}, removeEventListener() {} },
     EventSource: class { close() {} addEventListener() {} },
     setTimeout: () => 1, clearTimeout() {}, setInterval: () => 1, clearInterval() {},
+    requestAnimationFrame: (() => {
+      let time = 1000;
+      return fn => { time += 80; fn(time); return 1; };
+    })(),
+    cancelAnimationFrame: () => {},
+    performance: { now: () => 1000 },
     Vue: {
       createApp: options => ({ mount: () => { state = options.setup(); } }),
       ref: value => ({ value }), computed: fn => ({ get value() { return fn(); } }),
@@ -113,6 +119,96 @@ test('cancel stops every concurrent test request', async () => {
   assert.equal(state.cancelActiveTest(), false);
 });
 
+test('every auto-scrolling container reuses the shared themed scrollbar', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../static/index.html'), 'utf8');
+  const scrollable = [...html.matchAll(/class="([^"]*)"/g)]
+    .map(match => match[1])
+    .filter(classes => /overflow(-[xy])?-auto/.test(classes));
+  assert.ok(scrollable.length >= 3, 'expected the tab strip, node list and log panel to scroll');
+  assert.deepEqual(
+    scrollable.filter(classes => !classes.includes('custom-scrollbar')),
+    [],
+    'auto-scrolling containers must reuse .custom-scrollbar',
+  );
+});
+
+test('subscription tab strip scrolls horizontally without squeezing its tags', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../static/index.html'), 'utf8');
+  const strip = html.match(/<div[^>]*class="([^"]*overflow-x-auto[^"]*)"/);
+  assert.ok(strip, 'subscription tab strip must exist');
+  for (const token of ['custom-scrollbar', 'min-w-0', 'flex-1']) {
+    assert.ok(strip[1].includes(token), 'tab strip should keep ' + token);
+  }
+  assert.ok((html.match(/flex-shrink-0 cursor-pointer/g) || []).length > 0, 'tags must not shrink');
+});
+
+test('handleSubTabsWheel converts vertical mouse wheel into horizontal scroll on overflow', () => {
+  const { state } = setup(() => json({}));
+  const el = { scrollWidth: 600, clientWidth: 200, scrollLeft: 50 };
+  state.subTabsContainer.value = el;
+
+  let prevented = false;
+  state.handleSubTabsWheel({ deltaX: 0, deltaY: 100, preventDefault: () => { prevented = true; } });
+  assert.equal(prevented, true);
+  assert.ok(el.scrollLeft > 50, 'scrollLeft should smoothly advance with wheel delta');
+
+  prevented = false;
+  state.handleSubTabsWheel({ deltaX: 0, deltaY: -40, preventDefault: () => { prevented = true; } });
+  assert.equal(prevented, true);
+});
+
+test('auto-return scrolls back to active subscription with easing when mouse leaves', () => {
+  const { state } = setup(() => json({}));
+  const targetBtn = { offsetLeft: 300, offsetWidth: 80 };
+  const el = {
+    scrollWidth: 800,
+    clientWidth: 200,
+    scrollLeft: 600,
+    querySelector: () => targetBtn,
+    firstElementChild: targetBtn,
+  };
+  state.subTabsContainer.value = el;
+  state.activeNode.value = { subscription_id: 'sub-1' };
+
+  state.scrollToRunningNodeSub();
+  assert.ok(el.scrollLeft < 600, 'scrollLeft should glide towards centered active tab');
+});
+
+test('handleSubTabsWheel allows normal page scroll when tabs do not overflow', () => {
+  const { state } = setup(() => json({}));
+  const el = { scrollWidth: 150, clientWidth: 200, scrollLeft: 0 };
+  state.subTabsContainer.value = el;
+
+  let prevented = false;
+  state.handleSubTabsWheel({ deltaX: 0, deltaY: 100, preventDefault: () => { prevented = true; } });
+  assert.equal(prevented, false);
+  assert.equal(el.scrollLeft, 0);
+});
+
+test('node and subscription names have max-width limits and truncation to prevent squeezing', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../static/index.html'), 'utf8');
+  const nodeNameSpan = html.match(/<span v-if="editingNodeId !== node\.id"[^>]*class="([^"]*)"/);
+  assert.ok(nodeNameSpan, 'node name span must exist');
+  assert.ok(nodeNameSpan[1].includes('truncate'), 'node name must have truncate');
+  assert.ok(nodeNameSpan[1].includes('min-w-'), 'node name must protect minimum width');
+
+  const subNameSpan = html.match(/<span v-if="getNodeSubName\(node\.subscription_id\)"[^>]*class="([^"]*)"/);
+  assert.ok(subNameSpan, 'sub name span in row must exist');
+  assert.ok(subNameSpan[1].includes('truncate'), 'sub name must truncate');
+  assert.ok(subNameSpan[1].includes('max-w-'), 'sub name must have max-width');
+
+  const tabSpan = html.match(/<span v-if="editingSubId !== sub\.id"[^>]*class="([^"]*)"/);
+  assert.ok(tabSpan, 'tab title span must exist');
+  assert.ok(tabSpan[1].includes('truncate'), 'tab title must truncate');
+  assert.ok(tabSpan[1].includes('max-w-'), 'tab title must have max-width');
+});
+
+test('manual nodes empty state displays custom hint and omits import button', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../static/index.html'), 'utf8');
+  assert.ok(html.includes('导入独立节点以在此显示'), 'manual empty hint must exist');
+  assert.ok(html.includes("activeSubFilter !== 'manual'"), 'import button should be hidden for manual empty state');
+});
+
 test('delete confirmation retains its original IDs after selection changes', async () => {
   const fixture = nodes();
   let deletion;
@@ -133,4 +229,22 @@ test('delete confirmation retains its original IDs after selection changes', asy
   state.handleConfirmAction();
   await Promise.resolve();
   assert.deepEqual(deletion.node_ids, ['1', '2']);
+});
+
+test('import failure raises error toast, logs system message and preserves input without altering modal body', async () => {
+  const { state } = setup(async (url) => {
+    if (url === '/api/nodes/import') {
+      return { ok: false, status: 400, json: async () => ({ detail: '未检测到有效节点链接或订阅地址' }) };
+    }
+    return json({});
+  });
+  state.openImportModal.value = true;
+  state.importInput.value = 'invalid://link';
+  await state.submitUnifiedImport();
+
+  assert.equal(state.openImportModal.value, true);
+  assert.equal(state.importInput.value, 'invalid://link');
+  assert.equal(state.toasts.value.at(-1).type, 'error');
+  assert.match(state.toasts.value.at(-1).message, /未检测到有效节点链接/);
+  assert.ok(state.logs.value.some(l => l.raw.includes('导入失败') && l.raw.includes('未检测到有效节点链接')));
 });

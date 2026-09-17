@@ -26,13 +26,13 @@
       }
     }
   </script>
-  <link rel="stylesheet" href="/static/css/app.css">
+  <link rel="stylesheet" href="/static/css/app.css?v=2.0.11">
 </head>
 <body class="min-h-screen flex flex-col antialiased selection:bg-emerald-500 selection:text-white">
   <div id="app" class="flex-1 flex flex-col pb-16">
     
     <!-- 全局轻量浮动 Toast 通知 -->
-    <div class="fixed top-4 right-4 z-50 flex flex-col items-end space-y-2 pointer-events-none max-w-sm">
+    <div class="fixed top-4 right-4 z-[100] flex flex-col items-end space-y-2 pointer-events-none max-w-sm">
       <transition-group name="toast-anim">
         <div v-for="t in toasts" :key="t.id"
              class="pointer-events-auto inline-flex items-center space-x-2 px-3.5 py-2 rounded-lg border shadow-xl backdrop-blur-md bg-[#12171F]/95 text-xs transition"
@@ -239,50 +239,64 @@
       <div v-show="currentTab === 'nodes'" class="space-y-3">
         
         <!-- 订阅分组切换栏 (Tabs) + 订阅管理条 (严格固定 h-11，切换任何订阅绝对不发生高度跳跃) -->
-        <div class="panel-box rounded-xl px-2.5 h-11 flex items-center justify-between gap-2 text-xs overflow-hidden">
-          <!-- 订阅过滤胶囊群 -->
-          <div class="flex items-center gap-1.5 overflow-x-auto py-1 flex-1 min-w-0">
-            <!-- 全部节点 -->
-            <button @click="activeSubFilter = 'all'"
-                    class="h-7 px-2.5 rounded-lg transition font-medium flex items-center space-x-1 flex-shrink-0"
-                    :class="activeSubFilter === 'all' ? 'bg-[#1C2432] text-white border border-[#232D3B]' : 'text-gray-400 hover:text-gray-200 hover:bg-[#12171F]'">
-              <span>全部节点</span>
-              <span class="text-[10px] text-gray-500 font-mono">({{ nodes.length }})</span>
-            </button>
+        <div class="panel-box rounded-xl px-2.5 h-11 flex items-center justify-between gap-2 text-xs overflow-hidden"
+             @mouseleave="handleSubTabsMouseLeave"
+             @mouseenter="handleSubTabsMouseEnter">
+          
+          <!-- 左侧区域：【冻结固定项】+【独立可滚动订阅源群】 -->
+          <div class="flex items-center h-full flex-1 min-w-0">
+            
+            <!-- 冻结项：【全部节点】与【节点导入】(常驻最左侧，完全不参与横向滚动) -->
+            <div class="flex items-center gap-1.5 flex-shrink-0 pr-2 border-r border-[#232D3B]/70">
+              <!-- 全部节点 -->
+              <button data-sub-id="all"
+                      @click="activeSubFilter = 'all'; scrollToActiveSub('all')"
+                      class="h-7 px-2.5 rounded-lg transition font-medium flex items-center space-x-1 flex-shrink-0"
+                      :class="activeSubFilter === 'all' ? 'bg-[#1C2432] text-white border border-[#232D3B]' : 'text-gray-400 hover:text-gray-200 hover:bg-[#12171F]'">
+                <span>全部节点</span>
+                <span class="text-[10px] text-gray-500 font-mono">({{ nodes.length }})</span>
+              </button>
 
-            <!-- 节点导入 -->
-            <button v-if="manualNodesCount > 0" 
-                    @click="activeSubFilter = 'manual'"
-                    class="h-7 px-2.5 rounded-lg transition font-medium flex items-center space-x-1 flex-shrink-0"
-                    :class="activeSubFilter === 'manual' ? 'bg-[#1C2432] text-white border border-[#232D3B]' : 'text-gray-400 hover:text-gray-200 hover:bg-[#12171F]'">
-              <span>节点导入</span>
-              <span class="text-[10px] text-gray-500 font-mono">({{ manualNodesCount }})</span>
-            </button>
+              <!-- 节点导入 -->
+              <button data-sub-id="manual" 
+                      @click="activeSubFilter = 'manual'; scrollToActiveSub('manual')"
+                      class="h-7 px-2.5 rounded-lg transition font-medium flex items-center space-x-1 flex-shrink-0"
+                      :class="activeSubFilter === 'manual' ? 'bg-[#1C2432] text-white border border-[#232D3B]' : 'text-gray-400 hover:text-gray-200 hover:bg-[#12171F]'">
+                <span>节点导入</span>
+                <span class="text-[10px] text-gray-500 font-mono">({{ manualNodesCount }})</span>
+              </button>
+            </div>
 
-            <!-- 各订阅源标签 (切换后再次点击名称即可原地修改) -->
-            <button v-for="sub in subscriptions" :key="sub.id"
-                    @click="handleSubTabClick(sub)"
-                    class="h-7 px-2.5 rounded-lg transition font-medium flex items-center space-x-1.5 flex-shrink-0 cursor-pointer"
-                    :class="activeSubFilter === sub.id ? 'bg-emerald-950/40 text-emerald-300 border border-emerald-700/50' : 'text-gray-400 hover:text-gray-200 hover:bg-[#12171F]'">
-              <i class="ph-bold ph-rss text-[10px] text-amber-400"></i>
-              <!-- 非编辑态：再次点击激活订阅名称进入就地修改 -->
-              <span v-if="editingSubId !== sub.id" 
-                    :title="activeSubFilter === sub.id ? '再次点击修改订阅名称' : sub.name"
-                    class="hover:text-white transition">
-                {{ sub.name }}
-              </span>
-              <!-- 行内编辑态：输入框，回车或点击任意外部区域直接保存 -->
-              <input v-else 
-                     ref="inlineSubRenameInputRef"
-                     v-model="inlineSubRenameValue"
-                     @click.stop
-                     @keydown.enter="saveInlineSubRename(sub)"
-                     @keydown.esc="cancelInlineSubRename"
-                     @blur="saveInlineSubRename(sub)"
-                     type="text" 
-                     class="h-5 bg-[#0A0D12] border border-emerald-500 rounded px-1 text-xs text-white font-medium focus:outline-none min-w-[70px] max-w-[140px]">
-              <span class="text-[10px] font-mono opacity-70">({{ getSubNodeCount(sub.id) }})</span>
-            </button>
+            <!-- 独立横向滚动区域：仅包含【各订阅源标签】，滚轴区域也仅限制在订阅列表下方！ -->
+            <div class="flex items-start pt-2 pl-2 gap-1.5 overflow-x-auto overflow-y-hidden custom-scrollbar sub-tabs-strip h-full flex-1 min-w-0 relative"
+                 ref="subTabsContainer"
+                 @wheel="handleSubTabsWheel">
+              <!-- 各订阅源标签 (切换后再次点击名称即可原地修改) -->
+              <button v-for="sub in subscriptions" :key="sub.id"
+                      :data-sub-id="sub.id"
+                      @click="handleSubTabClick(sub); scrollToActiveSub(sub.id)"
+                      class="h-7 px-2.5 rounded-lg transition font-medium flex items-center space-x-1.5 flex-shrink-0 cursor-pointer"
+                      :class="activeSubFilter === sub.id ? 'bg-emerald-950/40 text-emerald-300 border border-emerald-700/50' : 'text-gray-400 hover:text-gray-200 hover:bg-[#12171F]'">
+                <i class="ph-bold ph-rss text-[10px] text-amber-400"></i>
+                <!-- 非编辑态：限制最长显示，超长省略号截断并带悬停完整提示 -->
+                <span v-if="editingSubId !== sub.id" 
+                      :title="sub.name + (activeSubFilter === sub.id ? '（再次点击修改订阅名称）' : '')"
+                      class="hover:text-white transition truncate max-w-[110px] sm:max-w-[150px]">
+                  {{ sub.name }}
+                </span>
+                <!-- 行内编辑态：输入框，回车或点击任意外部区域直接保存 -->
+                <input v-else 
+                       ref="inlineSubRenameInputRef"
+                       v-model="inlineSubRenameValue"
+                       @click.stop
+                       @keydown.enter="saveInlineSubRename(sub)"
+                       @keydown.esc="cancelInlineSubRename"
+                       @blur="saveInlineSubRename(sub)"
+                       type="text" 
+                       class="h-5 bg-[#0A0D12] border border-emerald-500 rounded px-1 text-xs text-white font-medium focus:outline-none min-w-[70px] max-w-[140px]">
+                <span class="text-[10px] font-mono opacity-70">({{ getSubNodeCount(sub.id) }})</span>
+              </button>
+            </div>
           </div>
 
           <!-- 当前选中订阅的更新与管理专属工具 (严格 h-7 居中，与整行高度完美锁死) -->
@@ -387,16 +401,20 @@
           </div>
         </div>
 
-        <!-- 节点对齐表格列表 (独立滚动容器，紧紧控制节点列表，滚动条悬浮不挤压布局，与上方卡片严格对齐) -->
-        <div class="custom-scrollbar overflow-y-auto space-y-1 select-none max-h-[calc(100vh-285px)] min-h-[160px]">
-          <div v-for="node in displayNodes" :id="'node-row-' + node.id" :key="node.id" 
-               @click="handleNodeClick(node, $event)"
-               @dblclick.prevent="handleNodeDblClick(node)"
-               class="list-row rounded-lg pl-3.5 pr-0 h-9 flex items-center justify-between text-xs cursor-pointer group overflow-hidden relative transition-colors"
-               :class="[
-                 node.is_active ? 'list-row-active' : '',
-                 isNodeSelected(node.id) ? '!border-emerald-500/80 !bg-[#152330]' : ''
-               ]">
+        <!-- 节点列表外层容器 (相对定位，承载独立悬浮外挂纵轴滚轴，100% 满宽绝对对齐上方卡片) -->
+        <div class="relative w-full">
+          <!-- 节点列表滚动视口 (彻底消除原生粗滚轴侵占，卡片 100% 满宽与上方多选按钮和外框绝对对齐) -->
+          <div ref="nodeListScrollRef"
+               @scroll.passive="handleNodeListScroll"
+               class="overflow-y-auto space-y-1 select-none max-h-[calc(100vh-330px)] min-h-[160px] custom-scrollbar no-scrollbar">
+            <div v-for="node in displayNodes" :id="'node-row-' + node.id" :key="node.id" 
+                 @click="handleNodeClick(node, $event)"
+                 @dblclick.prevent="handleNodeDblClick(node)"
+                 class="list-row rounded-lg pl-3.5 pr-0 h-9 flex items-center justify-between text-xs cursor-pointer group overflow-hidden relative transition-colors"
+                 :class="[
+                   node.is_active ? 'list-row-active' : '',
+                   isNodeSelected(node.id) ? '!border-emerald-500/80 !bg-[#152330]' : ''
+                 ]">
             
             <!-- 列 1：左侧自适应区域 -->
             <div class="flex-1 min-w-0 flex items-center space-x-2.5 pr-2 overflow-hidden">
@@ -415,13 +433,13 @@
                 </template>
               </div>
 
-              <!-- 节点名称与订阅标签：同一水平基线对齐，垂直视觉居中 -->
+              <!-- 节点名称与订阅标签：紧密相邻贴合，超长自适应省略截断 -->
               <div class="min-w-0 flex-1 flex items-baseline space-x-2 overflow-hidden">
-                <!-- 节点名称 (多选模式下点击切换多选，普通模式点击行内就地编辑) -->
+                <!-- 节点名称 (宽度随文本自适应紧贴订阅标签，超长省略截断) -->
                 <span v-if="editingNodeId !== node.id" 
-                      class="font-medium text-white truncate text-xs hover:text-emerald-400 transition leading-snug cursor-pointer"
+                      class="font-medium text-white truncate text-xs hover:text-emerald-400 transition leading-snug cursor-pointer min-w-0 max-w-[240px] sm:max-w-[340px]"
                       @click.stop="isMultiSelectMode ? handleNodeClick(node) : startInlineRename(node)" 
-                      :title="isMultiSelectMode ? '' : '点击修改备注'">
+                      :title="node.name + (isMultiSelectMode ? '' : '（点击修改备注）')">
                   {{ node.name }}
                 </span>
                 <input v-else 
@@ -434,9 +452,10 @@
                        type="text" 
                        class="h-5 bg-[#0A0D12] border border-emerald-500 rounded px-1 text-xs text-white font-medium focus:outline-none min-w-[100px] max-w-[200px]">
 
-                <!-- 订阅来源标签 (纯文字无边框背景) -->
+                <!-- 订阅来源标签 (限制最长显示，超长省略并悬停提示，不挤占节点名称) -->
                 <span v-if="getNodeSubName(node.subscription_id)" 
-                      class="text-[11px] text-gray-500 font-sans leading-snug flex-shrink-0 select-none">
+                      class="text-[11px] text-gray-500 font-sans leading-snug truncate max-w-[100px] sm:max-w-[150px] shrink-0 select-none"
+                      :title="'订阅源：' + getNodeSubName(node.subscription_id)">
                   {{ getNodeSubName(node.subscription_id) }}
                 </span>
               </div>
@@ -557,16 +576,32 @@
               <i class="ph-bold ph-cloud-slash text-2xl text-gray-600"></i>
             </div>
             <div class="text-center space-y-1">
-              <p class="text-sm text-gray-400 font-medium">暂无节点</p>
-              <p class="text-xs text-gray-600">导入订阅链接或节点分享链接开始使用</p>
+              <p v-if="activeSubFilter === 'manual'" class="text-xs text-gray-500 font-medium">导入独立节点以在此显示</p>
+              <template v-else>
+                <p class="text-sm text-gray-400 font-medium">暂无节点</p>
+                <p class="text-xs text-gray-600">导入订阅链接或节点分享链接开始使用</p>
+              </template>
             </div>
-            <button @click="openImportModal = true"
+            <button v-if="activeSubFilter !== 'manual'"
+                    @click="openImportModal = true"
                     class="flex items-center space-x-1.5 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium transition shadow-sm">
               <i class="ph-bold ph-plus text-xs"></i>
               <span>立即导入</span>
             </button>
           </div>
         </div>
+
+        <!-- 独立外挂悬浮纵轴滚轴 (绝对定位在列表卡片右外侧 10px 处，零延迟即时跟手追踪) -->
+        <div v-if="nodeScrollVisible"
+             class="absolute -right-2.5 top-1 bottom-1 w-1.5 flex flex-col justify-start z-10 pointer-events-none transition-opacity"
+             :class="nodeScrollActive ? 'opacity-100 duration-0' : 'opacity-0 duration-300'">
+          <div class="w-1 bg-[#4B5563] hover:bg-[#10B981] rounded-full transition-colors duration-150"
+               :style="{
+                 height: nodeScrollThumbHeight + 'px',
+                 transform: 'translateY(' + nodeScrollThumbTop + 'px)'
+               }"></div>
+        </div>
+      </div>
       </div>
 
       <!-- ================= 视图 2：分流规则管理 (并排三栏工作台，全局统一保存与撤销) ================= -->
@@ -746,7 +781,7 @@
       <!-- 日志列表主体 (高保真解析操作日志与连接流水) -->
       <div v-show="drawerExpanded" 
            ref="logContainer"
-           class="flex-1 bg-[#0A0D12] overflow-y-auto p-2.5 font-mono text-[11px] space-y-0.5 select-text">
+           class="flex-1 bg-[#0A0D12] overflow-y-auto custom-scrollbar p-2.5 font-mono text-[11px] space-y-0.5 select-text">
         <div v-if="logStreamError" role="status" class="text-amber-300 px-2 py-2">{{ logStreamError }}</div>
         <div v-else-if="parsedFilteredLogs.length === 0" class="text-gray-600 text-center py-6">
           暂无日志流水数据...

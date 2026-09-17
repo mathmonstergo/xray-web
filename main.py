@@ -243,6 +243,13 @@ def import_nodes(req: ImportRequest):
             imported_nodes = SubscriptionManager.parse_raw_text(raw_content)
             if not imported_nodes:
                 raise ValueError("订阅内容未能解析出任何有效节点")
+
+            existing_subs = store.get_subscriptions()
+            existing_sub = next((s for s in existing_subs if s["url"] == raw_sub_url.strip()), None)
+            is_duplicate_sub = existing_sub is not None
+            if is_duplicate_sub:
+                target_name = existing_sub.get("name") or target_name
+
             sub = store.add_subscription(name=target_name, url=raw_sub_url)
             sub_id = sub["id"]
         except Exception as e:
@@ -260,31 +267,58 @@ def import_nodes(req: ImportRequest):
     if not imported_nodes:
         raise HTTPException(status_code=400, detail="未检测到有效节点链接或订阅地址，请检查格式")
 
-    count = store.add_nodes_batch(imported_nodes, subscription_id=sub_id)
     if sub_id:
-        store.update_sub_meta(sub_id)
+        before_sub_ids = {n["id"] for n in store.get_nodes() if n.get("subscription_id") == sub_id}
+        count = store.sync_subscription_nodes(sub_id, imported_nodes)
+        after_sub_ids = {n["id"] for n in store.get_nodes() if n.get("subscription_id") == sub_id}
+        new_count = len(after_sub_ids - before_sub_ids)
+        dup_count = len(after_sub_ids & before_sub_ids)
+        total_in_sub = len(after_sub_ids)
 
-    if import_type == "subscription":
-        total_in_sub = sum(n.get("subscription_id") == sub_id for n in store.get_nodes())
-        if count > 0:
-            msg = f"已智能识别为订阅，成功添加「{target_name}」并拉取 {total_in_sub} 个节点（新增 {count} 个）！"
+        if is_duplicate_sub:
+            if new_count > 0:
+                msg = f"已识别为已有订阅「{target_name}」（链接重复）：划分至「{target_name}」标签，更新 {dup_count} 个重复节点，新增 {new_count} 个节点（共 {total_in_sub} 个）！"
+            else:
+                msg = f"已识别为已有订阅「{target_name}」（链接重复）：划分至「{target_name}」标签，就地更新 {dup_count} 个节点，无新增！"
         else:
-            msg = f"已智能识别为订阅，成功添加「{target_name}」，包含 {total_in_sub} 个节点！"
+            msg = f"已识别为新订阅：成功添加「{target_name}」标签，并同步拉取 {total_in_sub} 个节点！"
+
+        return {
+            "success": True,
+            "type": import_type,
+            "target_tab": sub_id,
+            "target_tab_name": target_name,
+            "is_duplicate": is_duplicate_sub,
+            "new_count": new_count,
+            "duplicate_count": dup_count,
+            "total_count": total_in_sub,
+            "count": total_in_sub,
+            "message": msg,
+        }
     else:
+        before_nodes = len(store.get_nodes())
+        count = store.add_nodes_batch(imported_nodes, subscription_id=None)
         total = len(imported_nodes)
-        if count == total:
-            msg = f"已智能识别为节点链接，成功导入 {count} 个节点！"
-        elif count > 0:
-            msg = f"已智能识别为节点链接，成功导入 {count} 个新节点（更新 {total - count} 个已有节点）！"
-        else:
-            msg = f"已智能识别为节点链接，已更新 {total} 个已有节点！"
+        dup_count = total - count
 
-    return {
-        "success": True,
-        "type": import_type,
-        "count": count,
-        "message": msg
-    }
+        if dup_count == total:
+            msg = f"已识别为节点链接：导入的 {total} 个节点均已存在（重复），已就地更新，归入「节点导入」标签下！"
+        elif dup_count > 0:
+            msg = f"已识别为节点链接：成功导入 {count} 个新节点，更新 {dup_count} 个重复节点，已归入「节点导入」标签下！"
+        else:
+            msg = f"已识别为节点链接：成功导入 {count} 个新节点，已归入「节点导入」标签下！"
+
+        return {
+            "success": True,
+            "type": import_type,
+            "target_tab": "manual",
+            "target_tab_name": "节点导入",
+            "new_count": count,
+            "duplicate_count": dup_count,
+            "total_count": total,
+            "count": count,
+            "message": msg,
+        }
 
 class NodeBatchActionRequest(BaseModel):
     node_ids: Optional[List[str]] = None
@@ -423,8 +457,7 @@ def add_subscription(req: SubscriptionCreateRequest):
             raise ValueError("从该订阅地址未解析到任何节点")
 
         sub = store.add_subscription(name=req.name, url=req.url)
-        count = store.add_nodes_batch(nodes, subscription_id=sub["id"])
-        store.update_sub_meta(sub["id"], count)
+        count = store.sync_subscription_nodes(sub["id"], nodes)
 
         return {
             "success": True,
@@ -531,4 +564,4 @@ def index_page():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host=config.WEB_HOST, port=config.WEB_PORT, reload=False)
+    uvicorn.run("main:app", host=config.WEB_HOST, port=config.WEB_PORT, reload=False, timeout_graceful_shutdown=1)

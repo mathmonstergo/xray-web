@@ -693,6 +693,164 @@ createApp({
       }
     }
 
+    const subTabsContainer = ref(null)
+    let targetScrollLeft = null
+    let wheelAnimFrame = null
+    let autoScrollAnimFrame = null
+    let autoReturnTimer = null
+    let isAutoScrolling = false
+
+    const cancelAutoScroll = () => {
+      isAutoScrolling = false
+      if (autoScrollAnimFrame) {
+        cancelAnimationFrame(autoScrollAnimFrame)
+        autoScrollAnimFrame = null
+      }
+    }
+
+    const cancelWheelAnim = () => {
+      if (wheelAnimFrame) {
+        cancelAnimationFrame(wheelAnimFrame)
+        wheelAnimFrame = null
+      }
+      targetScrollLeft = null
+    }
+
+    // 丝滑滚轮阻尼动效：上下拨动滚轮累积平滑位移，微动量阻尼减速
+    const handleSubTabsWheel = event => {
+      const el = subTabsContainer.value
+      if (!el) return
+      if (el.scrollWidth <= el.clientWidth) return
+
+      if (autoReturnTimer) {
+        clearTimeout(autoReturnTimer)
+        autoReturnTimer = null
+      }
+      cancelAutoScroll()
+
+      const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY
+      if (delta === 0) return
+
+      if (typeof event.preventDefault === 'function') event.preventDefault()
+
+      const maxScroll = Math.max(0, el.scrollWidth - el.clientWidth)
+      if (maxScroll <= 0) return
+
+      // 触碰两端边界时严格锁定，严禁任何反向回弹或微扰闪回
+      if (delta > 0 && el.scrollLeft >= maxScroll - 1) {
+        cancelWheelAnim()
+        el.scrollLeft = maxScroll
+        return
+      }
+      if (delta < 0 && el.scrollLeft <= 1) {
+        cancelWheelAnim()
+        el.scrollLeft = 0
+        return
+      }
+
+      if (targetScrollLeft === null || Math.abs(targetScrollLeft - el.scrollLeft) > 300) {
+        targetScrollLeft = el.scrollLeft
+      }
+      targetScrollLeft = Math.max(0, Math.min(maxScroll, targetScrollLeft + delta * 1.15))
+
+      if (wheelAnimFrame) cancelAnimationFrame(wheelAnimFrame)
+      const stepWheel = () => {
+        const diff = targetScrollLeft - el.scrollLeft
+        if (Math.abs(diff) > 0.5) {
+          el.scrollLeft += diff * 0.22
+          wheelAnimFrame = requestAnimationFrame(stepWheel)
+        } else {
+          el.scrollLeft = targetScrollLeft
+          wheelAnimFrame = null
+          targetScrollLeft = null
+        }
+      }
+      wheelAnimFrame = requestAnimationFrame(stepWheel)
+    }
+
+    // 基础平滑滚动插值执行器 (easeInOutCubic: 平缓起步->逐渐加速->柔和吸附到位)
+    const scrollToX = targetX => {
+      const el = subTabsContainer.value
+      if (!el) return
+      const startX = el.scrollLeft
+      const distance = targetX - startX
+      if (Math.abs(distance) < 2) return
+
+      cancelAutoScroll()
+      cancelWheelAnim()
+
+      const duration = Math.min(600, Math.max(280, Math.abs(distance) * 0.7))
+      const startTime = performance.now()
+      isAutoScrolling = true
+
+      const easeInOutCubic = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2)
+
+      const step = now => {
+        if (!isAutoScrolling) return
+        const elapsed = now - startTime
+        const progress = Math.min(1, elapsed / duration)
+        el.scrollLeft = startX + distance * easeInOutCubic(progress)
+        if (progress < 1) {
+          autoScrollAnimFrame = requestAnimationFrame(step)
+        } else {
+          el.scrollLeft = targetX
+          isAutoScrolling = false
+          autoScrollAnimFrame = null
+        }
+      }
+      autoScrollAnimFrame = requestAnimationFrame(step)
+    }
+
+    // 精确平滑滚动至【当前页面选中的标签】(首位对齐；若选中的是冻结项则滚回 0)
+    const scrollToActiveSub = (explicitSubId = null) => {
+      const el = subTabsContainer.value
+      if (!el || el.scrollWidth <= el.clientWidth) return
+      const activeId = explicitSubId || activeSubFilter.value || 'all'
+
+      // 若选中项是左侧已冻结固定的【全部节点】或【节点导入】，订阅滚动区平滑归位至最左端 0
+      if (activeId === 'all' || activeId === 'manual') {
+        scrollToX(0)
+        return
+      }
+
+      // 否则将选中的订阅标签对齐至独立滚动区的最左侧首位
+      const targetBtn = el.querySelector(`[data-sub-id="${activeId}"]`)
+      if (!targetBtn) {
+        scrollToX(0)
+        return
+      }
+
+      const btnLeft = (typeof targetBtn.getBoundingClientRect === 'function' && typeof el.getBoundingClientRect === 'function')
+        ? (targetBtn.getBoundingClientRect().left - el.getBoundingClientRect().left) + el.scrollLeft
+        : (targetBtn.offsetLeft || 0)
+      const maxScroll = Math.max(0, el.scrollWidth - el.clientWidth)
+      const targetX = Math.max(0, Math.min(maxScroll, btnLeft))
+      scrollToX(targetX)
+    }
+
+    const scrollToTab = targetId => {
+      scrollToActiveSub(targetId)
+    }
+
+    const scrollToRunningNodeSub = () => {
+      scrollToActiveSub()
+    }
+
+    const handleSubTabsMouseLeave = () => {
+      if (autoReturnTimer) clearTimeout(autoReturnTimer)
+      autoReturnTimer = setTimeout(() => {
+        scrollToActiveSub()
+      }, 600)
+    }
+
+    const handleSubTabsMouseEnter = () => {
+      if (autoReturnTimer) {
+        clearTimeout(autoReturnTimer)
+        autoReturnTimer = null
+      }
+      cancelAutoScroll()
+    }
+
     const confirmDialog = ref({
       show: false,
       title: '确认删除',
@@ -822,11 +980,18 @@ createApp({
         openImportModal.value = false
         importInput.value = ''
         importCustomName.value = ''
-        clearFilters()
+        if (data.target_tab) {
+          activeSubFilter.value = data.target_tab
+          await nextTick()
+          scrollToActiveSub(data.target_tab)
+        } else {
+          clearFilters()
+        }
         showToast(data.message || '导入成功', 'success')
         addSystemLog('SYSTEM', data.message || '导入成功')
       } catch (error) {
         showToast(`导入失败：${error.message}`, 'error')
+        addSystemLog('SYSTEM', `导入失败：${error.message}`)
       } finally {
         importing.value = false
       }
@@ -842,6 +1007,7 @@ createApp({
         addSystemLog('SYSTEM', data.message || `订阅「${sub.name}」已刷新`)
       } catch (error) {
         showToast(`更新订阅失败：${error.message}`, 'error')
+        addSystemLog('SYSTEM', `更新订阅失败：${error.message}`)
       } finally {
         sub.updating = false
       }
@@ -1135,11 +1301,61 @@ createApp({
       }
     }
 
+    const nodeListScrollRef = ref(null)
+    const nodeScrollThumbHeight = ref(30)
+    const nodeScrollThumbTop = ref(0)
+    const nodeScrollVisible = ref(false)
+    const nodeScrollActive = ref(false)
+    let nodeScrollTimer = null
+
+    const updateNodeScrollThumb = () => {
+      const el = nodeListScrollRef.value
+      if (!el) return
+      const ch = el.clientHeight
+      const sh = el.scrollHeight
+      const st = el.scrollTop
+      if (sh <= ch + 2) {
+        nodeScrollVisible.value = false
+        return
+      }
+      nodeScrollVisible.value = true
+      const trackHeight = ch - 8
+      const thumbHeight = Math.max(24, Math.round((ch / sh) * trackHeight))
+      const maxScroll = sh - ch
+      const scrollRatio = maxScroll > 0 ? st / maxScroll : 0
+      nodeScrollThumbHeight.value = thumbHeight
+      nodeScrollThumbTop.value = Math.round(scrollRatio * (trackHeight - thumbHeight))
+    }
+
+    const handleNodeListScroll = () => {
+      updateNodeScrollThumb()
+      nodeScrollActive.value = true
+      if (nodeScrollTimer) clearTimeout(nodeScrollTimer)
+      nodeScrollTimer = setTimeout(() => {
+        nodeScrollActive.value = false
+      }, 700)
+    }
+
+    watch(displayNodes, async () => {
+      await nextTick()
+      updateNodeScrollThumb()
+    })
+
+    watch(currentTab, async tab => {
+      if (tab === 'nodes') {
+        await nextTick()
+        updateNodeScrollThumb()
+      }
+    })
+
     onMounted(async () => {
       document.addEventListener('click', handleGlobalClick)
       window.addEventListener('keydown', handleKeydown)
       window.addEventListener('beforeunload', handleBeforeUnload)
       window.addEventListener('scroll', handleScrollActivity, true)
+      window.addEventListener('resize', updateNodeScrollThumb)
+      await nextTick()
+      updateNodeScrollThumb()
       startLogStream()
       statusTimer = setInterval(fetchStatus, 15000)
       const results = await Promise.allSettled([fetchNodes(), fetchStatus(), fetchSubscriptions(), fetchRoutingCategories()])
@@ -1160,6 +1376,7 @@ createApp({
       window.removeEventListener('keydown', handleKeydown)
       window.removeEventListener('beforeunload', handleBeforeUnload)
       window.removeEventListener('scroll', handleScrollActivity, true)
+      window.removeEventListener('resize', updateNodeScrollThumb)
     })
 
     const showPortModal = ref(false)
@@ -1231,6 +1448,8 @@ createApp({
       batchTestDelay, batchTestSpeed, cancelActiveTest, batchDeleteSelected, deleteNode, getLatencyClass, latencyTitle, speedTitle,
       editingNodeId, inlineRenameValue, inlineRenameInputRef, startInlineRename, startInlineRenameForActive, locateActiveNode, cancelInlineRename, saveInlineRename,
       editingSubId, inlineSubRenameValue, inlineSubRenameInputRef, startInlineSubRename, cancelInlineSubRename, saveInlineSubRename, handleSubTabClick,
+      subTabsContainer, handleSubTabsWheel, handleSubTabsMouseLeave, handleSubTabsMouseEnter, scrollToActiveSub, scrollToRunningNodeSub, scrollToTab,
+      nodeListScrollRef, nodeScrollThumbHeight, nodeScrollThumbTop, nodeScrollVisible, nodeScrollActive, handleNodeListScroll,
       openImportModal, importInput, importCustomName, importing, importTextarea, detectedImportType, pasteFromClipboard, submitUnifiedImport,
       updateSub, deleteSub, routingTab, categoryTexts, savingCat, isCatDirty, getCatLinesCount, revertCategory, saveCategory,
       hasRoutingChanges, savingAllCategories, saveAllCategories, revertAllCategories,
