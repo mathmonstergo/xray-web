@@ -158,7 +158,7 @@ createApp({
       if (!node) return null
       const enc = (node.encryption || '').toLowerCase()
       if (enc.includes('mlkem')) {
-        return { label: 'ML-KEM', class: 'text-cyan-300 bg-cyan-500/10 border-cyan-500/25' }
+        return { label: 'ML-KEM', class: 'text-cyan-400' }
       }
       let flow = ''
       try {
@@ -166,16 +166,16 @@ createApp({
       } catch (_) {}
       const hasVision = flow.toLowerCase().includes('vision') || (node.tags || []).some(t => String(t).toLowerCase().includes('vision'))
       if (hasVision) {
-        return { label: 'Vision', class: 'text-amber-300 bg-amber-500/10 border-amber-500/25' }
+        return { label: 'Vision', class: 'text-amber-400' }
       }
       const net = (node.network || '').toLowerCase()
       if (net && net !== 'tcp') {
-        return { label: net.toUpperCase(), class: 'text-emerald-300 bg-emerald-500/10 border-emerald-500/25' }
+        return { label: net.toUpperCase(), class: 'text-emerald-400' }
       }
       if (enc && !['none', 'auto', ''].includes(enc)) {
-        if (enc.includes('gcm') || enc.includes('aes-256')) return { label: 'AES-GCM', class: 'text-blue-300 bg-blue-500/10 border-blue-500/25' }
-        if (enc.includes('chacha')) return { label: 'ChaCha20', class: 'text-indigo-300 bg-indigo-500/10 border-indigo-500/25' }
-        return { label: enc.toUpperCase(), class: 'text-gray-300 bg-gray-800 border-gray-700' }
+        if (enc.includes('gcm') || enc.includes('aes-256')) return { label: 'AES-GCM', class: 'text-blue-400' }
+        if (enc.includes('chacha')) return { label: 'ChaCha20', class: 'text-indigo-400' }
+        return { label: enc.toUpperCase(), class: 'text-gray-400' }
       }
       return null
     }

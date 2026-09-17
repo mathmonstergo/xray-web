@@ -175,6 +175,29 @@ input[type="number"] {
   transform: translateY(-6px) scale(0.98);
 }
 
+/* 订阅标签激活项：中间粗两头细的质感光轨下划线 */
+.sub-tab-indicator {
+  position: absolute;
+  bottom: 0px;
+  left: 2px;
+  right: 2px;
+  height: 2px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent 0%, rgba(16, 185, 129, 0.35) 15%, #10B981 50%, rgba(16, 185, 129, 0.35) 85%, transparent 100%);
+  border-radius: 9999px;
+}
+.sub-tab-indicator::after {
+  content: '';
+  position: absolute;
+  left: 20%;
+  right: 20%;
+  bottom: -0.5px;
+  height: 3px;
+  background: radial-gradient(ellipse at center, #34D399 0%, rgba(16, 185, 129, 0.85) 50%, transparent 100%);
+  filter: drop-shadow(0 0 3px rgba(16, 185, 129, 0.7));
+  border-radius: 9999px;
+}
+
 /* ================= 纯净浅色模式 (Light Mode) ================= */
 html.light {
   color-scheme: light;
@@ -277,17 +300,13 @@ html.light nav button.text-white {
   box-shadow: 0 1px 2px rgba(31, 35, 40, 0.06) !important;
 }
 
-/* 订阅标签激活与冻结项 */
-html.light [data-sub-id].bg-\[\#1C2432\] {
-  background-color: #FFFFFF !important;
-  color: #1F2328 !important;
-  border-color: #D0D7DE !important;
-  box-shadow: 0 1px 2px rgba(31, 35, 40, 0.05) !important;
+/* 浅色模式下的订阅光轨下划线 */
+html.light .sub-tab-indicator {
+  background: linear-gradient(90deg, transparent 0%, rgba(5, 150, 105, 0.35) 15%, #059669 50%, rgba(5, 150, 105, 0.35) 85%, transparent 100%);
 }
-html.light .sub-tabs-strip button.bg-emerald-950\/40 {
-  background-color: #DCFCE7 !important;
-  color: #15803D !important;
-  border-color: #86EFAC !important;
+html.light .sub-tab-indicator::after {
+  background: radial-gradient(ellipse at center, #10B981 0%, rgba(5, 150, 105, 0.85) 50%, transparent 100%);
+  filter: drop-shadow(0 0 2px rgba(5, 150, 105, 0.45));
 }
 
 /* 抽屉日志面板 */

@@ -86,11 +86,11 @@
                @mouseenter="showCopyMenu = true" 
                @mouseleave="showCopyMenu = false">
             
-            <!-- 紧凑矩形本体：展开时底部无边框且直角，与下拉框完美无缝融为一体 -->
-            <div class="h-7 flex items-center font-mono text-[11px] border transition shadow-sm"
+            <!-- 紧凑矩形本体：默认无底色无边框，悬浮或展开时才显现背景与边框 -->
+            <div class="h-7 flex items-center font-mono text-[11px] border transition duration-150"
                  :class="showCopyMenu 
-                   ? 'bg-[#12171F] border-[#232D3B] rounded-t-lg rounded-b-none z-50 border-b-transparent' 
-                   : 'bg-[#0A0D12] hover:bg-[#161D27] border-[#232D3B] hover:border-emerald-500/40 rounded-lg'">
+                   ? 'bg-[#12171F] border-[#232D3B] rounded-t-lg rounded-b-none z-50 border-b-transparent shadow-sm' 
+                   : 'bg-transparent border-transparent hover:bg-[#161D27] hover:border-[#232D3B] rounded-lg'">
               
               <!-- 端口文字区域：点击打开端口设置弹窗 (无设置icon，紧凑) -->
               <div @click="openPortModal()" 
@@ -174,9 +174,9 @@
             </transition>
           </div>
 
-          <!-- 纯粹黑白日/夜主题切换按钮 -->
+          <!-- 纯粹黑白日/夜主题切换按钮：默认无底色无边框，悬浮时显现 -->
           <button @click="toggleTheme" 
-                  class="h-7 w-7 flex items-center justify-center rounded-lg border border-[#232D3B] bg-[#0A0D12] hover:bg-[#161D27] text-gray-400 hover:text-white transition shadow-sm cursor-pointer"
+                  class="h-7 w-7 flex items-center justify-center rounded-lg border border-transparent bg-transparent hover:bg-[#161D27] hover:border-[#232D3B] text-gray-400 hover:text-white transition cursor-pointer"
                   :title="isDark ? '切换至浅色模式' : '切换至深色模式'">
             <i class="ph-bold text-xs" :class="isDark ? 'ph-sun text-gray-200' : 'ph-moon text-gray-800'"></i>
           </button>
@@ -209,7 +209,7 @@
                   @click="locateActiveNode()" title="点击定位至节点列表对应位置">
                 {{ activeNode?.name || '未选择节点' }}
               </h2>
-              <span class="text-[10px] text-emerald-400 font-mono uppercase bg-emerald-500/10 px-1 rounded border border-emerald-500/20">
+              <span class="text-[10px] text-emerald-400 font-mono uppercase font-bold tracking-wide">
                 {{ activeNode?.protocol || 'VLESS' }}
               </span>
             </div>
@@ -248,19 +248,21 @@
               <!-- 全部节点 -->
               <button data-sub-id="all"
                       @click="activeSubFilter = 'all'; scrollToActiveSub('all')"
-                      class="h-7 px-2.5 rounded-lg transition font-medium flex items-center space-x-1 flex-shrink-0"
-                      :class="activeSubFilter === 'all' ? 'bg-[#1C2432] text-white border border-[#232D3B]' : 'text-gray-400 hover:text-gray-200 hover:bg-[#12171F]'">
+                      class="relative h-7 px-2.5 transition font-medium flex items-center space-x-1 flex-shrink-0 cursor-pointer"
+                      :class="activeSubFilter === 'all' ? 'text-white font-semibold' : 'text-gray-400 hover:text-gray-200'">
                 <span>全部节点</span>
                 <span class="text-[10px] text-gray-500 font-mono">({{ nodes.length }})</span>
+                <span v-if="activeSubFilter === 'all'" class="sub-tab-indicator"></span>
               </button>
 
               <!-- 节点导入 -->
               <button data-sub-id="manual" 
                       @click="activeSubFilter = 'manual'; scrollToActiveSub('manual')"
-                      class="h-7 px-2.5 rounded-lg transition font-medium flex items-center space-x-1 flex-shrink-0"
-                      :class="activeSubFilter === 'manual' ? 'bg-[#1C2432] text-white border border-[#232D3B]' : 'text-gray-400 hover:text-gray-200 hover:bg-[#12171F]'">
+                      class="relative h-7 px-2.5 transition font-medium flex items-center space-x-1 flex-shrink-0 cursor-pointer"
+                      :class="activeSubFilter === 'manual' ? 'text-white font-semibold' : 'text-gray-400 hover:text-gray-200'">
                 <span>节点导入</span>
                 <span class="text-[10px] text-gray-500 font-mono">({{ manualNodesCount }})</span>
+                <span v-if="activeSubFilter === 'manual'" class="sub-tab-indicator"></span>
               </button>
             </div>
 
@@ -272,8 +274,8 @@
               <button v-for="sub in subscriptions" :key="sub.id"
                       :data-sub-id="sub.id"
                       @click="handleSubTabClick(sub); scrollToActiveSub(sub.id)"
-                      class="h-7 px-2.5 rounded-lg transition font-medium flex items-center space-x-1.5 flex-shrink-0 cursor-pointer"
-                      :class="activeSubFilter === sub.id ? 'bg-emerald-950/40 text-emerald-300 border border-emerald-700/50' : 'text-gray-400 hover:text-gray-200 hover:bg-[#12171F]'">
+                      class="relative h-7 px-2.5 transition font-medium flex items-center space-x-1.5 flex-shrink-0 cursor-pointer"
+                      :class="activeSubFilter === sub.id ? 'text-white font-semibold' : 'text-gray-400 hover:text-gray-200'">
                 <i class="ph-bold ph-rss text-[10px] text-amber-400"></i>
                 <!-- 非编辑态：限制最长显示，超长省略号截断并带悬停完整提示 -->
                 <span v-if="editingSubId !== sub.id" 
@@ -292,6 +294,7 @@
                        type="text" 
                        class="h-5 bg-[#0A0D12] border border-emerald-500 rounded px-1 text-xs text-white font-medium focus:outline-none min-w-[70px] max-w-[140px]">
                 <span class="text-[10px] font-mono opacity-70">({{ getSubNodeCount(sub.id) }})</span>
+                <span v-if="activeSubFilter === sub.id" class="sub-tab-indicator"></span>
               </button>
             </div>
           </div>
@@ -506,24 +509,24 @@
               </button>
             </div>
 
-            <!-- 节点特性标签组 (向右对齐一位：无加密算法特性时自动贴紧右侧地址，无空缺断层) -->
-            <div class="w-44 flex-shrink-0 flex items-center justify-end space-x-1.5 pr-2 hidden lg:flex select-none leading-none">
+            <!-- 节点特性标签组 (仅保留文字，无底色无边框，极简轻盈) -->
+            <div class="w-44 flex-shrink-0 flex items-center justify-end space-x-2 pr-2 hidden lg:flex select-none leading-none">
               <!-- 协议微标 -->
-              <span class="text-[10px] text-gray-400 font-mono uppercase px-1.5 py-0.5 rounded bg-gray-800/60 border border-gray-700/50">
+              <span class="text-[10px] text-gray-500 font-mono uppercase tracking-wider font-semibold">
                 {{ node.protocol }}
               </span>
 
               <!-- 安全特性微标 -->
-              <span v-if="node.security === 'reality'" class="text-[10px] text-purple-300 font-sans px-1.5 py-0.5 rounded bg-purple-500/10 border border-purple-500/25">
+              <span v-if="node.security === 'reality'" class="text-[10px] text-purple-400 font-sans font-medium">
                 Reality
               </span>
-              <span v-else-if="node.security === 'tls'" class="text-[10px] text-cyan-300 font-sans px-1.5 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/25">
+              <span v-else-if="node.security === 'tls'" class="text-[10px] text-cyan-400 font-sans font-medium">
                 TLS
               </span>
 
-              <!-- 高级特性微标：自适应识别 ML-KEM、Vision、WS/gRPC 或主流对称加密算法，无多余特性时自然对齐不留白 -->
+              <!-- 高级特性微标 -->
               <span v-if="getNodeFeatureTag(node)" 
-                    class="text-[10px] font-sans px-1.5 py-0.5 rounded border"
+                    class="text-[10px] font-sans font-medium"
                     :class="getNodeFeatureTag(node).class">
                 {{ getNodeFeatureTag(node).label }}
               </span>
