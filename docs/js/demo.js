@@ -39,7 +39,7 @@ createApp({
     const service = ref({
       active: true,
       version: 'Xray 26.7.28',
-      bridge_ip: '172.25.217.166'
+      bridge_ip: '192.168.1.100'
     });
     const ports = ref({ socks: 20170, http: 20171, routing: 20172 });
     const bridgeIP = computed(() => service.value.bridge_ip);
@@ -89,10 +89,10 @@ createApp({
       { id: 'n-sg-04', name: 'SG 新加坡 04 [备用容灾]', protocol: 'shadowsocks', address: '128.***.***.89', port: 20188, security: 'none', network: 'tcp', raw_link: 'ss://demo@128.1.2.6:20188', is_active: false, last_delay: 65, last_speed: '29.4 MB/s', subscription_id: 'sub-4', testing: false, speedTesting: false, liveSpeed: '' },
 
       // 独立导入节点 (Manual)
-      { id: 'n-man-01', name: 'self-work-pc (家宽直连)', protocol: 'vless', address: '155.***.***.218', port: 20900, security: 'reality', network: 'tcp', raw_link: 'vless://demo@155.1.2.3:20900?security=reality', is_active: false, last_delay: 18, last_speed: '95.0 MB/s', subscription_id: null, testing: false, speedTesting: false, liveSpeed: '' },
-      { id: 'n-man-02', name: 'oracle-cloud-free-arm (首尔)', protocol: 'vless', address: '150.***.***.88', port: 443, security: 'reality', network: 'tcp', raw_link: 'vless://demo@150.1.2.4:443?security=reality', is_active: false, last_delay: 45, last_speed: '31.2 MB/s', subscription_id: null, testing: false, speedTesting: false, liveSpeed: '' },
-      { id: 'n-man-03', name: 'racknerd-budget-vps (西雅图)', protocol: 'trojan', address: '192.***.***.55', port: 8443, security: 'tls', network: 'tcp', raw_link: 'trojan://demo@192.1.2.5:8443?security=tls', is_active: false, last_delay: 175, last_speed: '18.5 MB/s', subscription_id: null, testing: false, speedTesting: false, liveSpeed: '' },
-      { id: 'n-man-04', name: 'aws-lightsail-tokyo', protocol: 'shadowsocks', address: '54.***.***.102', port: 10086, security: 'none', network: 'tcp', raw_link: 'ss://demo@54.1.2.6:10086', is_active: false, last_delay: 62, last_speed: '44.0 MB/s', subscription_id: null, testing: false, speedTesting: false, liveSpeed: '' }
+      { id: 'n-man-01', name: 'Home-Broadband (演示节点)', protocol: 'vless', address: '198.51.100.22', port: 20900, security: 'reality', network: 'tcp', raw_link: 'vless://demo@198.51.100.22:20900?security=reality', is_active: false, last_delay: 18, last_speed: '95.0 MB/s', subscription_id: null, testing: false, speedTesting: false, liveSpeed: '' },
+      { id: 'n-man-02', name: 'KR 首尔 01 [测试节点]', protocol: 'vless', address: '198.51.100.33', port: 443, security: 'reality', network: 'tcp', raw_link: 'vless://demo@198.51.100.33:443?security=reality', is_active: false, last_delay: 45, last_speed: '31.2 MB/s', subscription_id: null, testing: false, speedTesting: false, liveSpeed: '' },
+      { id: 'n-man-03', name: 'US 达拉斯 01 [测试节点]', protocol: 'trojan', address: '198.51.100.44', port: 8443, security: 'tls', network: 'tcp', raw_link: 'trojan://demo@198.51.100.44:8443?security=tls', is_active: false, last_delay: 175, last_speed: '18.5 MB/s', subscription_id: null, testing: false, speedTesting: false, liveSpeed: '' },
+      { id: 'n-man-04', name: 'JP 东京 06 [测试节点]', protocol: 'shadowsocks', address: '198.51.100.55', port: 10086, security: 'none', network: 'tcp', raw_link: 'ss://demo@198.51.100.55:10086', is_active: false, last_delay: 62, last_speed: '44.0 MB/s', subscription_id: null, testing: false, speedTesting: false, liveSpeed: '' }
     ]);
 
     // Revealed Address toggle
@@ -511,23 +511,13 @@ createApp({
       direct: `geosite:cn
 geoip:cn
 geoip:private
-cursor.sh
-api.cursor.sh
-domain:push.apple.com
-domain:mail.qq.com
-geosite:category-scholar-cn
-geosite:category-scholar-!cn
-npmmirror.com
-jingshizhuxin.com
-researchgate.net
-rugao.me
-yiyuan.co
-muyuan.do
-iamsen.com
-linuxdo.org
-yzf.qq.com
-albiononline.com
-jianzhide.vip
+domain:baidu.com
+domain:qq.com
+domain:163.com
+domain:bilibili.com
+domain:taobao.com
+domain:jd.com
+domain:alipay.com
 domain:apple.com
 domain:icloud.com
 domain:microsoft.com
