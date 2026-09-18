@@ -289,9 +289,44 @@ createApp({
           return delaySortOrder.value === 'asc' ? a.last_delay - b.last_delay : b.last_delay - a.last_delay
         })
       }
+      // 运行中的节点始终置顶到首行
+      const activeIndex = result.findIndex(n => n.is_active)
+      if (activeIndex > 0) {
+        const [activeItem] = result.splice(activeIndex, 1)
+        result.unshift(activeItem)
+      }
       return result
     })
-    const clearFilters = () => { searchQuery.value = ''; activeSubFilter.value = 'all' }
+    const clearFilters = () => { searchQuery.value = ''; activeSubFilter.value = 'all'; isSearchExpanded.value = false }
+    const isSearchExpanded = ref(false)
+    const searchInputRef = ref(null)
+    const expandSearch = async () => {
+      isSearchExpanded.value = true
+      await nextTick()
+      if (searchInputRef.value) searchInputRef.value.focus()
+    }
+    const collapseSearchIfEmpty = () => {
+      if (!searchQuery.value) {
+        isSearchExpanded.value = false
+      }
+    }
+    const focusSearchInput = () => {
+      if (searchInputRef.value) searchInputRef.value.focus()
+    }
+    const clearSearchQuery = () => {
+      searchQuery.value = ''
+      focusSearchInput()
+    }
+    const handleSearchEsc = (e) => {
+      if (searchQuery.value) {
+        searchQuery.value = ''
+      } else {
+        isSearchExpanded.value = false
+        if (e && e.target && typeof e.target.blur === 'function') {
+          e.target.blur()
+        }
+      }
+    }
     const allVisibleSelected = computed(() => displayNodes.value.length > 0 && displayNodes.value.every(node => isNodeSelected(node.id)))
     const toggleSelectVisible = () => {
       const visibleIds = new Set(displayNodes.value.map(node => node.id))
@@ -1132,6 +1167,51 @@ createApp({
       }
     }
 
+    // 分流规则三栏滚动渐变遮罩与上下小三角状态
+    const routingScrollCues = ref({
+      direct: { canUp: false, canDown: false },
+      proxy: { canUp: false, canDown: false },
+      block: { canUp: false, canDown: false },
+    })
+    const routingDirectTextareaRef = ref(null)
+    const routingProxyTextareaRef = ref(null)
+    const routingBlockTextareaRef = ref(null)
+
+    const getRoutingEl = cat => {
+      if (cat === 'direct') return routingDirectTextareaRef.value
+      if (cat === 'proxy') return routingProxyTextareaRef.value
+      if (cat === 'block') return routingBlockTextareaRef.value
+      return null
+    }
+
+    const updateRoutingScrollCue = cat => {
+      const el = getRoutingEl(cat)
+      if (!el) return
+      const hasOverflow = el.scrollHeight > el.clientHeight + 2
+      routingScrollCues.value[cat] = {
+        canUp: hasOverflow && el.scrollTop > 4,
+        canDown: hasOverflow && (el.scrollTop + el.clientHeight < el.scrollHeight - 4),
+      }
+    }
+
+    const updateAllRoutingScrollCues = () => {
+      updateRoutingScrollCue('direct')
+      updateRoutingScrollCue('proxy')
+      updateRoutingScrollCue('block')
+    }
+
+    const scrollRoutingTextarea = (cat, direction) => {
+      const el = getRoutingEl(cat)
+      if (!el) return
+      const step = direction === 'up' ? -140 : 140
+      el.scrollBy({ top: step, behavior: 'smooth' })
+    }
+
+    watch(categoryTexts, async () => {
+      await nextTick()
+      updateAllRoutingScrollCues()
+    }, { deep: true })
+
     const drawerExpanded = ref(false)
     const drawerHeight = ref(230)
     const drawerRef = ref(null)
@@ -1325,9 +1405,28 @@ createApp({
     const nodeScrollActive = ref(false)
     let nodeScrollTimer = null
 
+    // 节点列表滚动渐变遮罩与上下小三角状态
+    const nodeScrollCue = ref({ canUp: false, canDown: false })
+    const updateNodeScrollCue = () => {
+      const el = nodeListScrollRef.value
+      if (!el) return
+      const hasOverflow = el.scrollHeight > el.clientHeight + 2
+      nodeScrollCue.value = {
+        canUp: hasOverflow && el.scrollTop > 4,
+        canDown: hasOverflow && (el.scrollTop + el.clientHeight < el.scrollHeight - 4),
+      }
+    }
+    const scrollNodeList = (direction) => {
+      const el = nodeListScrollRef.value
+      if (!el) return
+      const step = direction === 'up' ? -140 : 140
+      el.scrollBy({ top: step, behavior: 'smooth' })
+    }
+
     const updateNodeScrollThumb = () => {
       const el = nodeListScrollRef.value
       if (!el) return
+      updateNodeScrollCue()
       const ch = el.clientHeight
       const sh = el.scrollHeight
       const st = el.scrollTop
@@ -1356,12 +1455,17 @@ createApp({
     watch(displayNodes, async () => {
       await nextTick()
       updateNodeScrollThumb()
+      updateNodeScrollCue()
     })
 
     watch(currentTab, async tab => {
       if (tab === 'nodes') {
         await nextTick()
         updateNodeScrollThumb()
+        updateNodeScrollCue()
+      } else if (tab === 'routing') {
+        await nextTick()
+        updateAllRoutingScrollCues()
       }
     })
 
@@ -1379,6 +1483,10 @@ createApp({
       for (const result of results) {
         if (result.status === 'rejected') showToast(result.reason.message, 'error')
       }
+      await nextTick()
+      updateNodeScrollThumb()
+      updateNodeScrollCue()
+      updateAllRoutingScrollCues()
     })
 
     onUnmounted(() => {
@@ -1453,6 +1561,7 @@ createApp({
 
     return {
       isDark, toggleTheme,
+      isSearchExpanded, searchInputRef, expandSearch, collapseSearchIfEmpty, focusSearchInput, clearSearchQuery, handleSearchEsc,
       confirmDialog, handleConfirmAction, handleCancelAction,
       showPortModal, savingPorts, portFormError, portForm, openPortModal, resetDefaultPorts, submitPortUpdate,
       getPortValidationError, isPortFormValid, getNodeFeatureTag,
@@ -1468,6 +1577,9 @@ createApp({
       editingSubId, inlineSubRenameValue, inlineSubRenameInputRef, startInlineSubRename, cancelInlineSubRename, saveInlineSubRename, handleSubTabClick,
       subTabsContainer, handleSubTabsWheel, handleSubTabsMouseLeave, handleSubTabsMouseEnter, scrollToActiveSub, scrollToRunningNodeSub, scrollToTab,
       nodeListScrollRef, nodeScrollThumbHeight, nodeScrollThumbTop, nodeScrollVisible, nodeScrollActive, handleNodeListScroll,
+      nodeScrollCue, scrollNodeList, updateNodeScrollCue,
+      routingScrollCues, routingDirectTextareaRef, routingProxyTextareaRef, routingBlockTextareaRef,
+      updateRoutingScrollCue, updateAllRoutingScrollCues, scrollRoutingTextarea,
       openImportModal, importInput, importCustomName, importing, importTextarea, detectedImportType, pasteFromClipboard, submitUnifiedImport,
       updateSub, deleteSub, routingTab, categoryTexts, savingCat, isCatDirty, getCatLinesCount, revertCategory, saveCategory,
       hasRoutingChanges, savingAllCategories, saveAllCategories, revertAllCategories,

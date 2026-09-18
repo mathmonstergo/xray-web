@@ -248,3 +248,67 @@ test('import failure raises error toast, logs system message and preserves input
   assert.match(state.toasts.value.at(-1).message, /未检测到有效节点链接/);
   assert.ok(state.logs.value.some(l => l.raw.includes('导入失败') && l.raw.includes('未检测到有效节点链接')));
 });
+
+test('search morphing expands, preserves text on blur, and collapses gracefully on escape or empty blur', async () => {
+  const { state } = setup(async () => json({}));
+  assert.equal(state.isSearchExpanded.value, false);
+
+  // 展开搜索
+  await state.expandSearch();
+  assert.equal(state.isSearchExpanded.value, true);
+
+  // 空值失焦收回
+  state.collapseSearchIfEmpty();
+  assert.equal(state.isSearchExpanded.value, false);
+
+  // 输入搜索词后失焦不收回
+  await state.expandSearch();
+  state.searchQuery.value = 'hk';
+  state.collapseSearchIfEmpty();
+  assert.equal(state.isSearchExpanded.value, true);
+
+  // Esc 优先清空内容
+  state.handleSearchEsc();
+  assert.equal(state.searchQuery.value, '');
+  assert.equal(state.isSearchExpanded.value, true);
+
+  // 再次 Esc 顺滑收回
+  state.handleSearchEsc();
+  assert.equal(state.isSearchExpanded.value, false);
+});
+
+test('scroll cues fade mask and indicator buttons respond to overflow state', () => {
+  const { state } = setup(async () => json({}));
+  assert.ok(state.nodeScrollCue.value);
+  assert.equal(state.nodeScrollCue.value.canUp, false);
+  assert.equal(state.nodeScrollCue.value.canDown, false);
+
+  assert.ok(state.routingScrollCues.value.direct);
+  assert.equal(state.routingScrollCues.value.direct.canUp, false);
+  assert.equal(state.routingScrollCues.value.direct.canDown, false);
+
+  // 模拟节点列表溢出
+  state.nodeListScrollRef.value = {
+    scrollHeight: 1000,
+    clientHeight: 400,
+    scrollTop: 100,
+    scrollBy() {},
+  };
+  state.updateNodeScrollCue();
+  assert.equal(state.nodeScrollCue.value.canUp, true);
+  assert.equal(state.nodeScrollCue.value.canDown, true);
+
+  // 模拟滚动到顶部
+  state.nodeListScrollRef.value.scrollTop = 0;
+  state.updateNodeScrollCue();
+  assert.equal(state.nodeScrollCue.value.canUp, false);
+  assert.equal(state.nodeScrollCue.value.canDown, true);
+
+  // 模拟滚动到底部
+  state.nodeListScrollRef.value.scrollTop = 600;
+  state.updateNodeScrollCue();
+  assert.equal(state.nodeScrollCue.value.canUp, true);
+  assert.equal(state.nodeScrollCue.value.canDown, false);
+});
+
+
