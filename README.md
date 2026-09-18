@@ -1,12 +1,15 @@
 # Xray Web
-
 一个轻量的 Xray-core 本地 Web 控制台，面向 Linux / WSL 环境。
-
 粘贴 3x-ui 等面板生成的分享链接或订阅地址，在浏览器里切换节点、编辑分流、测速、看日志。直接调用本机 Xray-core 二进制，支持 VLESS Reality XHTTP 等最新协议和传输方式。
 
 不依赖 sing-box，不需要 Docker 或 Node.js，不需要 root。
 
 > ⚠️ 本项目仅针对个人自用Windows+WSL环境+自建3x-ui面板导出的订阅/节点轻量开发，可能存在未覆盖的协议组合或不兼容的边界情况。要用的话拉下来让 AI agent 根据你的需求改源码还是很方便的。本项目在pi中使用gemini-3.8-flash-high编写，gpt6-astra-medium进行review，耗时2天左右。
+<p align="center">
+  <a href="https://mathmonstergo.github.io/xray-web/">
+    <img src="https://img.shields.io/badge/Live%20Demo-在线交互演示-10b981?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Live Demo">
+  </a>
+</p>
 
 ## 功能
 
