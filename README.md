@@ -20,15 +20,15 @@
 ## UI界面
 
 <p align="center">
-  <img src="assets/节点界面.png" alt="节点界面" width="720">
+  <img src="assets/节点界面v2-白.png" alt="节点界面" width="720">
   <br>
-  <em>图 1：项目主界面</em>
+  <em>图 1：项目主界面-白</em>
 </p>
 
 <p align="center">
-  <img src="assets/规则界面.png" alt="规则界面" width="720">
+  <img src="assets/规则界面v2-白.png" alt="规则界面" width="720">
   <br>
-  <em>图 2：规则配置页</em>
+  <em>图 2：规则配置页-白</em>
 </p>
 
 ## 快速开始
