@@ -1,15 +1,18 @@
 html {
-  scrollbar-gutter: stable;
+  height: 100%;
+  overflow: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  zoom: 1.25;
 }
 
 body {
+  zoom: 1.25;
+  width: calc(100vw / 1.25);
+  height: calc(100vh / 1.25);
+  overflow: hidden;
   background-color: #0A0D12;
   color: #C9D1D9;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
-  overflow-x: hidden;
 }
 
 button, input, textarea, select {
@@ -391,8 +394,24 @@ html.light .theme-toggle-btn:hover {
   background-color: transparent !important;
   border: 1px solid #CBD5E1 !important;
 }
+.port-inner-divider {
+  width: 1px !important;
+  height: 14px !important;
+  background-color: #232D3B !important;
+  flex-shrink: 0;
+}
 html.light .port-inner-divider {
   background-color: #CBD5E1 !important;
+}
+
+/* 分流规则三栏卡片高度 */
+.routing-card {
+  height: 280px;
+}
+@media (min-width: 768px) {
+  .routing-card {
+    height: 550px;
+  }
 }
 
 /* 第 4 条：全站带框/底色的操作按钮（排序、多选操作、延迟测试、速度测试）彻底去掉立体底色 */
@@ -766,16 +785,26 @@ html.light *::selection {
 .tabs-slider-viewport {
   overflow: hidden;
   width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 .tabs-slider-track {
   display: flex;
   width: 100%;
+  height: 100%;
+  min-height: 0;
   transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1);
   will-change: transform;
 }
 .tabs-slider-pane {
   width: 100%;
+  height: 100%;
+  min-height: 0;
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 /* 模态框弹窗 */
@@ -993,6 +1022,42 @@ html.light .search-box .search-clear-btn {
 }
 html.light .search-box .search-clear-btn:hover {
   color: #0F172A !important;
+}
+
+/* 订阅栏横向滚动渐变遮罩 (左右) */
+.sub-tabs-fade-left,
+.sub-tabs-fade-right {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2.25rem; /* 36px */
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 15;
+  transition: opacity 0.22s ease, visibility 0.22s ease;
+}
+.sub-tabs-fade-left {
+  left: 0;
+  background: linear-gradient(to right, #12171F 15%, rgba(18, 23, 31, 0.85) 45%, rgba(18, 23, 31, 0.25) 75%, transparent 100%);
+}
+.sub-tabs-fade-right {
+  right: 0;
+  background: linear-gradient(to left, #12171F 15%, rgba(18, 23, 31, 0.85) 45%, rgba(18, 23, 31, 0.25) 75%, transparent 100%);
+}
+.sub-tabs-fade-left.is-hidden,
+.sub-tabs-fade-right.is-hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+html.light .sub-tabs-fade-left {
+  background: linear-gradient(to right, #F6F8FA 15%, rgba(246, 248, 250, 0.85) 45%, rgba(246, 248, 250, 0.25) 75%, transparent 100%) !important;
+}
+html.light .sub-tabs-fade-right {
+  background: linear-gradient(to left, #F6F8FA 15%, rgba(246, 248, 250, 0.85) 45%, rgba(246, 248, 250, 0.25) 75%, transparent 100%) !important;
 }
 
 /* ================= 滚动渐变雾化遮罩与小三角指示器 (节点列表与分流规则) ================= */

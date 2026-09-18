@@ -51,6 +51,8 @@ for (let j of jsWords) {
 
 // 4. 手动补全动态拼接的常见颜色与状态类
 const dynamicVariants = [
+  'h-full', 'min-h-0', 'flex-1', 'flex-col', 'overflow-hidden', 'pb-[34px]',
+  'h-[280px]', 'md:h-[550px]', 'pt-3', 'cursor-default', 'cursor-pointer',
   'bg-emerald-500', 'animate-pulse', 'bg-amber-400', 'bg-rose-500', 'bg-cyan-500',
   'border-emerald-500/40', 'text-emerald-300', 'text-emerald-400', 'text-emerald-500',
   'border-rose-500/40', 'text-rose-300', 'text-rose-400',

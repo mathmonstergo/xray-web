@@ -304,11 +304,38 @@ test('scroll cues fade mask and indicator buttons respond to overflow state', ()
   assert.equal(state.nodeScrollCue.value.canUp, false);
   assert.equal(state.nodeScrollCue.value.canDown, true);
 
-  // 模拟滚动到底部
+  // 模拟节点列表滚动到底部
   state.nodeListScrollRef.value.scrollTop = 600;
   state.updateNodeScrollCue();
   assert.equal(state.nodeScrollCue.value.canUp, true);
   assert.equal(state.nodeScrollCue.value.canDown, false);
+
+  // 模拟订阅横轴溢出与滚动指示
+  assert.ok(state.subTabsScrollCue.value);
+  assert.equal(state.subTabsScrollCue.value.canLeft, false);
+  assert.equal(state.subTabsScrollCue.value.canRight, false);
+
+  state.subTabsContainer.value = {
+    scrollWidth: 800,
+    clientWidth: 300,
+    scrollLeft: 100,
+    scrollBy() {},
+  };
+  state.updateSubTabsScrollCue();
+  assert.equal(state.subTabsScrollCue.value.canLeft, true);
+  assert.equal(state.subTabsScrollCue.value.canRight, true);
+
+  // 滚回最左侧
+  state.subTabsContainer.value.scrollLeft = 0;
+  state.updateSubTabsScrollCue();
+  assert.equal(state.subTabsScrollCue.value.canLeft, false);
+  assert.equal(state.subTabsScrollCue.value.canRight, true);
+
+  // 滚至最右端
+  state.subTabsContainer.value.scrollLeft = 500;
+  state.updateSubTabsScrollCue();
+  assert.equal(state.subTabsScrollCue.value.canLeft, true);
+  assert.equal(state.subTabsScrollCue.value.canRight, false);
 });
 
 

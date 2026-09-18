@@ -680,11 +680,15 @@ createApp({
         setTimeout(() => row.classList.remove('node-locate-pulse'), 1500)
       }
     }
-    const cancelInlineRename = () => { editingNodeId.value = null }
+    const cancelInlineRename = () => {
+      editingNodeId.value = null
+      triggerNodeListReturnToTop(150)
+    }
     const saveInlineRename = async node => {
       if (editingNodeId.value !== node.id) return
       const name = inlineRenameValue.value.trim()
       editingNodeId.value = null
+      triggerNodeListReturnToTop(150)
       if (!name) {
         showToast('节点名称不能为空', 'warning')
         return
@@ -792,11 +796,13 @@ createApp({
       if (delta > 0 && el.scrollLeft >= maxScroll - 1) {
         cancelWheelAnim()
         el.scrollLeft = maxScroll
+        updateSubTabsScrollCue()
         return
       }
       if (delta < 0 && el.scrollLeft <= 1) {
         cancelWheelAnim()
         el.scrollLeft = 0
+        updateSubTabsScrollCue()
         return
       }
 
@@ -810,14 +816,35 @@ createApp({
         const diff = targetScrollLeft - el.scrollLeft
         if (Math.abs(diff) > 0.5) {
           el.scrollLeft += diff * 0.22
+          updateSubTabsScrollCue()
           wheelAnimFrame = requestAnimationFrame(stepWheel)
         } else {
           el.scrollLeft = targetScrollLeft
+          updateSubTabsScrollCue()
           wheelAnimFrame = null
           targetScrollLeft = null
         }
       }
       wheelAnimFrame = requestAnimationFrame(stepWheel)
+    }
+
+    // 订阅横轴滚动渐变遮罩与向左向右小三角状态
+    const subTabsScrollCue = ref({ canLeft: false, canRight: false })
+    const updateSubTabsScrollCue = () => {
+      const el = subTabsContainer.value
+      if (!el) return
+      const hasOverflow = el.scrollWidth > el.clientWidth + 2
+      subTabsScrollCue.value = {
+        canLeft: hasOverflow && el.scrollLeft > 4,
+        canRight: hasOverflow && (el.scrollLeft + el.clientWidth < el.scrollWidth - 4),
+      }
+    }
+
+    const scrollSubTabs = direction => {
+      const el = subTabsContainer.value
+      if (!el) return
+      const step = direction === 'left' ? -140 : 140
+      el.scrollBy({ left: step, behavior: 'smooth' })
     }
 
     // 基础平滑滚动插值执行器 (easeInOutCubic: 平缓起步->逐渐加速->柔和吸附到位)
@@ -842,10 +869,12 @@ createApp({
         const elapsed = now - startTime
         const progress = Math.min(1, elapsed / duration)
         el.scrollLeft = startX + distance * easeInOutCubic(progress)
+        updateSubTabsScrollCue()
         if (progress < 1) {
           autoScrollAnimFrame = requestAnimationFrame(step)
         } else {
           el.scrollLeft = targetX
+          updateSubTabsScrollCue()
           isAutoScrolling = false
           autoScrollAnimFrame = null
         }
@@ -1452,6 +1481,123 @@ createApp({
       }, 700)
     }
 
+    // 极致丝滑流体缓动滚回顶部执行器 (自然动量阻尼曲线: easeOut 柔和减速吸附)
+    const smoothScrollElementToTop = (el, onStep) => {
+      if (!el || el.scrollTop <= 0) return null
+      const startY = el.scrollTop
+      // 平滑持续时间自适应：短距离 ~340ms，长距离 ~520ms，兼顾效率与细腻流动感
+      const duration = Math.min(520, Math.max(340, Math.sqrt(startY) * 20))
+      const startTime = performance.now()
+      let animFrame = null
+      let cancelled = false
+
+      // 细腻流体阻尼曲线：起步顺畅自然，中间平稳行进，末端极柔和减速停靠在 0
+      const easeFluid = t => 1 - Math.pow(1 - t, 3.6)
+
+      const step = now => {
+        if (cancelled) return
+        const elapsed = now - startTime
+        const progress = Math.min(1, elapsed / duration)
+        el.scrollTop = Math.max(0, startY * (1 - easeFluid(progress)))
+        if (typeof onStep === 'function') onStep()
+        if (progress < 1 && el.scrollTop > 0) {
+          animFrame = requestAnimationFrame(step)
+        } else {
+          el.scrollTop = 0
+          if (typeof onStep === 'function') onStep()
+        }
+      }
+      animFrame = requestAnimationFrame(step)
+      return () => {
+        cancelled = true
+        if (animFrame) cancelAnimationFrame(animFrame)
+      }
+    }
+
+    let nodeAutoReturnTimer = null
+    let nodeCancelScrollTop = null
+    let isNodeListHovered = false
+
+    const triggerNodeListReturnToTop = (delay = 180) => {
+      if (editingNodeId.value || isNodeListHovered) return
+      const el = nodeListScrollRef.value
+      if (!el || el.scrollTop <= 0) return
+      if (nodeAutoReturnTimer) clearTimeout(nodeAutoReturnTimer)
+      nodeAutoReturnTimer = setTimeout(() => {
+        if (isNodeListHovered || editingNodeId.value) return
+        if (nodeCancelScrollTop) nodeCancelScrollTop()
+        nodeCancelScrollTop = smoothScrollElementToTop(el, () => {
+          updateNodeScrollThumb()
+          updateNodeScrollCue()
+        })
+      }, delay)
+    }
+
+    const handleNodeListMouseEnter = () => {
+      isNodeListHovered = true
+      if (nodeAutoReturnTimer) {
+        clearTimeout(nodeAutoReturnTimer)
+        nodeAutoReturnTimer = null
+      }
+      if (nodeCancelScrollTop) {
+        nodeCancelScrollTop()
+        nodeCancelScrollTop = null
+      }
+    }
+
+    const handleNodeListMouseLeave = () => {
+      isNodeListHovered = false
+      triggerNodeListReturnToTop(180)
+    }
+
+    const routingHovered = { direct: false, proxy: false, block: false }
+    const routingAutoReturnTimers = { direct: null, proxy: null, block: null }
+    const routingCancelScrollTops = { direct: null, proxy: null, block: null }
+
+    const triggerRoutingReturnToTop = (cat, delay = 180) => {
+      const el = getRoutingEl(cat)
+      if (!el || el.scrollTop <= 0) return
+      if (routingHovered[cat]) return
+      if (document.activeElement === el) return // 正在该框内聚焦打字，不强行打扰
+
+      if (routingAutoReturnTimers[cat]) clearTimeout(routingAutoReturnTimers[cat])
+      routingAutoReturnTimers[cat] = setTimeout(() => {
+        if (routingHovered[cat] || document.activeElement === el) return
+        if (routingCancelScrollTops[cat]) routingCancelScrollTops[cat]()
+        routingCancelScrollTops[cat] = smoothScrollElementToTop(el, () => {
+          updateRoutingScrollCue(cat)
+        })
+      }, delay)
+    }
+
+    const handleRoutingMouseEnter = cat => {
+      routingHovered[cat] = true
+      if (routingAutoReturnTimers[cat]) {
+        clearTimeout(routingAutoReturnTimers[cat])
+        routingAutoReturnTimers[cat] = null
+      }
+      if (routingCancelScrollTops[cat]) {
+        routingCancelScrollTops[cat]()
+        routingCancelScrollTops[cat] = null
+      }
+    }
+
+    const handleRoutingMouseLeave = cat => {
+      routingHovered[cat] = false
+      triggerRoutingReturnToTop(cat, 180)
+    }
+
+    const handleRoutingBlur = cat => {
+      // 当编辑失焦时（例如用户在框外空白处点击）：
+      // 只要鼠标已不在框内且 scrollTop > 0，立即触发平滑回滚到顶部！
+      triggerRoutingReturnToTop(cat, 60)
+    }
+
+    watch(subscriptions, async () => {
+      await nextTick()
+      updateSubTabsScrollCue()
+    }, { deep: true })
+
     watch(displayNodes, async () => {
       await nextTick()
       updateNodeScrollThumb()
@@ -1463,6 +1609,7 @@ createApp({
         await nextTick()
         updateNodeScrollThumb()
         updateNodeScrollCue()
+        updateSubTabsScrollCue()
       } else if (tab === 'routing') {
         await nextTick()
         updateAllRoutingScrollCues()
@@ -1475,8 +1622,10 @@ createApp({
       window.addEventListener('beforeunload', handleBeforeUnload)
       window.addEventListener('scroll', handleScrollActivity, true)
       window.addEventListener('resize', updateNodeScrollThumb)
+      window.addEventListener('resize', updateSubTabsScrollCue)
       await nextTick()
       updateNodeScrollThumb()
+      updateSubTabsScrollCue()
       startLogStream()
       statusTimer = setInterval(fetchStatus, 15000)
       const results = await Promise.allSettled([fetchNodes(), fetchStatus(), fetchSubscriptions(), fetchRoutingCategories()])
@@ -1486,10 +1635,18 @@ createApp({
       await nextTick()
       updateNodeScrollThumb()
       updateNodeScrollCue()
+      updateSubTabsScrollCue()
       updateAllRoutingScrollCues()
     })
 
     onUnmounted(() => {
+      window.removeEventListener('resize', updateSubTabsScrollCue)
+      if (nodeAutoReturnTimer) clearTimeout(nodeAutoReturnTimer)
+      if (nodeCancelScrollTop) nodeCancelScrollTop()
+      Object.keys(routingAutoReturnTimers).forEach(cat => {
+        if (routingAutoReturnTimers[cat]) clearTimeout(routingAutoReturnTimers[cat])
+        if (routingCancelScrollTops[cat]) routingCancelScrollTops[cat]()
+      })
       cancelActiveTest({ silent: true })
       if (statusTimer) clearInterval(statusTimer)
       eventSource?.close()
@@ -1576,10 +1733,11 @@ createApp({
       editingNodeId, inlineRenameValue, inlineRenameInputRef, startInlineRename, startInlineRenameForActive, locateActiveNode, cancelInlineRename, saveInlineRename,
       editingSubId, inlineSubRenameValue, inlineSubRenameInputRef, startInlineSubRename, cancelInlineSubRename, saveInlineSubRename, handleSubTabClick,
       subTabsContainer, handleSubTabsWheel, handleSubTabsMouseLeave, handleSubTabsMouseEnter, scrollToActiveSub, scrollToRunningNodeSub, scrollToTab,
+      subTabsScrollCue, scrollSubTabs, updateSubTabsScrollCue,
       nodeListScrollRef, nodeScrollThumbHeight, nodeScrollThumbTop, nodeScrollVisible, nodeScrollActive, handleNodeListScroll,
-      nodeScrollCue, scrollNodeList, updateNodeScrollCue,
+      nodeScrollCue, scrollNodeList, updateNodeScrollCue, handleNodeListMouseEnter, handleNodeListMouseLeave,
       routingScrollCues, routingDirectTextareaRef, routingProxyTextareaRef, routingBlockTextareaRef,
-      updateRoutingScrollCue, updateAllRoutingScrollCues, scrollRoutingTextarea,
+      updateRoutingScrollCue, updateAllRoutingScrollCues, scrollRoutingTextarea, handleRoutingMouseEnter, handleRoutingMouseLeave, handleRoutingBlur,
       openImportModal, importInput, importCustomName, importing, importTextarea, detectedImportType, pasteFromClipboard, submitUnifiedImport,
       updateSub, deleteSub, routingTab, categoryTexts, savingCat, isCatDirty, getCatLinesCount, revertCategory, saveCategory,
       hasRoutingChanges, savingAllCategories, saveAllCategories, revertAllCategories,
