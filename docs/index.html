@@ -22,7 +22,7 @@
   <div id="app" class="h-full flex flex-col pb-[34px] overflow-hidden">
     
     <!-- 全局轻量浮动 Toast 通知 -->
-    <div class="fixed top-4 right-4 z-[100] flex flex-col items-end space-y-2 pointer-events-none max-w-sm">
+    <div class="fixed top-3 sm:top-4 right-3 sm:right-4 z-[100] flex flex-col items-end space-y-2 pointer-events-none max-w-[calc(100vw-1.5rem)] sm:max-w-sm">
       <transition-group name="toast-anim">
         <div v-for="t in toasts" :key="t.id"
              class="toast-notification pointer-events-auto inline-flex items-center space-x-2 px-3.5 py-2 rounded-lg border shadow-xl backdrop-blur-md bg-[#12171F]/95 text-xs transition"
@@ -45,40 +45,49 @@
     </div>
 
     <!-- 顶部导航栏 -->
-    <header class="border-b border-[#232D3B] bg-[#12171F]/90 backdrop-blur sticky top-0 z-30 px-4 lg:px-8 py-2.5 relative flex-shrink-0">
-      <div class="max-w-5xl mx-auto flex items-center justify-between gap-4 relative">
+    <header class="border-b border-[#232D3B] bg-[#12171F]/90 backdrop-blur sticky top-0 z-30 px-3 sm:px-4 lg:px-8 py-2.5 relative flex-shrink-0">
+      <div class="max-w-5xl mx-auto flex items-center justify-between gap-2 sm:gap-4 relative pr-8 sm:pr-10 lg:pr-0">
         
         <!-- 左侧：Logo 区域 (固定槽位，无论版本号在不在，绝不推挤中间 Tab) -->
-        <div class="w-48 flex-shrink-0 flex items-center space-x-2">
+        <div class="w-auto sm:w-48 flex-shrink-0 flex items-center space-x-2">
           <span class="w-2 h-2 rounded-full" :class="service.active ? 'bg-emerald-500 animate-pulse' : 'bg-amber-400'" :title="service.active ? '核心运行中' : '核心未运行或状态未知'"></span>
           <div class="flex items-baseline space-x-1.5">
             <span class="font-medium text-sm text-white tracking-wide">Xray</span>
-            <span class="text-[10px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/25 select-none font-mono">DEMO</span>
+            <span class="hidden sm:inline text-[10px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/25 select-none font-mono">DEMO</span>
           </div>
         </div>
 
         <!-- 中间：主导航 Tab (百分比绝对居中锁定 50% 轴线，横向位置绝对死锁) -->
-        <nav class="absolute left-1/2 -translate-x-1/2 flex items-center space-x-1 bg-[#0A0D12] p-0.5 rounded-lg border border-[#232D3B] text-xs select-none">
+        <nav class="absolute left-1/2 -translate-x-1/2 flex items-center space-x-0.5 sm:space-x-1 bg-[#0A0D12] p-0.5 rounded-lg border border-[#232D3B] text-xs select-none">
           <button @click="currentTab = 'nodes'"
-                  class="px-3 py-1 rounded-md transition font-medium flex items-center space-x-1.5"
+                  class="px-2.5 sm:px-3 py-1 rounded-md transition font-medium flex items-center space-x-1 sm:space-x-1.5"
                   :class="currentTab === 'nodes' ? 'bg-[#1C2432] text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'">
             <i class="ph-bold ph-hard-drives text-emerald-400"></i>
-            <span>节点列表</span>
+            <span class="hidden sm:inline">节点列表</span>
+            <span class="sm:hidden">节点</span>
           </button>
           <button @click="currentTab = 'routing'"
-                  class="px-3 py-1 rounded-md transition font-medium flex items-center space-x-1.5"
+                  class="px-2.5 sm:px-3 py-1 rounded-md transition font-medium flex items-center space-x-1 sm:space-x-1.5"
                   :class="currentTab === 'routing' ? 'bg-[#1C2432] text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'">
             <i class="ph-bold ph-git-fork text-emerald-400"></i>
-            <span>分流规则</span>
+            <span class="hidden sm:inline">分流规则</span>
+            <span class="sm:hidden">分流</span>
           </button>
         </nav>
 
         <!-- 右侧快捷操作：端口卡片 + 导入 -->
-        <div class="flex items-center space-x-2 flex-shrink-0">
+        <div class="flex items-center space-x-1.5 sm:space-x-2 flex-shrink-0">
           
+          <!-- 移动端紧凑端口配置按钮 (手机端直接点击打开设置，极简且不挤占顶栏) -->
+          <button @click="openPortModal()" 
+                  class="sm:hidden h-7 w-7 flex items-center justify-center rounded-lg border border-[#232D3B] bg-transparent hover:bg-[#161D27] text-gray-400 hover:text-white transition cursor-pointer" 
+                  title="代理服务端口设置">
+            <i class="ph-bold ph-faders text-xs"></i>
+          </button>
+
           <!-- 紧凑代理服务端口卡片 (向下无缝延展下拉菜单，点击文字区域打开端口设置) -->
           <div ref="copyMenuRef" 
-               class="relative flex items-center select-none text-xs"
+               class="hidden sm:flex relative items-center select-none text-xs"
                @mouseenter="showCopyMenu = true" 
                @mouseleave="showCopyMenu = false">
             
@@ -192,7 +201,7 @@
 
           <!-- 导入按钮 -->
           <button @click="openImportModal = true" 
-                  class="import-btn h-7 flex items-center space-x-1 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium transition shadow-sm cursor-pointer">
+                  class="import-btn h-7 flex items-center space-x-1 px-2.5 sm:px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium transition shadow-sm cursor-pointer">
             <i class="ph-bold ph-plus text-xs"></i>
             <span>导入</span>
           </button>
@@ -201,14 +210,14 @@
 
       <!-- 页面顶部最右侧：纯粹黑白日/夜主题切换按钮 (常驻整个窗口顶栏最右端，不贴着导入按钮，图标已翻转：暗色显月亮，浅色显太阳) -->
       <button @click="toggleTheme" 
-              class="theme-toggle-btn absolute right-4 lg:right-8 top-1/2 -translate-y-1/2 h-7 w-7 flex items-center justify-center rounded-lg border border-transparent bg-transparent hover:bg-[#161D27] hover:border-[#232D3B] text-gray-400 hover:text-white transition cursor-pointer z-40"
+              class="theme-toggle-btn absolute right-2.5 sm:right-4 lg:right-8 top-1/2 -translate-y-1/2 h-7 w-7 flex items-center justify-center rounded-lg border border-transparent bg-transparent hover:bg-[#161D27] hover:border-[#232D3B] text-gray-400 hover:text-white transition cursor-pointer z-40"
               :title="isDark ? '切换至浅色模式' : '切换至深色模式'">
         <i class="ph-bold text-xs" :class="isDark ? 'ph-moon text-gray-200' : 'ph-sun text-gray-800'"></i>
       </button>
     </header>
 
     <!-- 主体区域 (视口满高自适应，无需整页向下滚动) -->
-    <main class="flex-1 min-h-0 max-w-5xl w-full mx-auto px-4 lg:px-8 py-3.5 flex flex-col overflow-hidden">
+    <main class="flex-1 min-h-0 max-w-5xl w-full mx-auto px-2.5 sm:px-4 lg:px-8 py-2.5 sm:py-3.5 flex flex-col overflow-hidden">
       
       <div v-if="statusError || service.active === false" role="status" class="text-xs text-amber-300 border border-amber-500/25 rounded-lg px-3 py-2 flex-shrink-0 mb-3">
         {{ statusError || 'Xray 核心未运行，请检查服务配置与启动日志。' }}
@@ -223,7 +232,7 @@
           <div class="tabs-slider-pane w-full h-full min-h-0 flex-shrink-0 flex flex-col" :class="{'pointer-events-none': currentTab !== 'nodes'}">
         
         <!-- 订阅分组切换栏 (Tabs) + 订阅管理条 (严格固定 h-11，切换任何订阅绝对不发生高度跳跃) -->
-        <div class="sub-tabs-bar panel-box rounded-xl px-2.5 h-11 flex items-center justify-between gap-2 text-xs overflow-hidden flex-shrink-0 mb-3"
+        <div class="sub-tabs-bar panel-box rounded-xl px-2 sm:px-2.5 h-11 flex items-center justify-between gap-1.5 sm:gap-2 text-xs overflow-hidden flex-shrink-0 mb-3"
              @mouseleave="handleSubTabsMouseLeave"
              @mouseenter="handleSubTabsMouseEnter">
           
@@ -231,11 +240,11 @@
           <div class="flex items-center h-full flex-1 min-w-0">
             
             <!-- 冻结项：【全部节点】与【节点导入】(常驻最左侧，完全不参与横向滚动) -->
-            <div class="flex items-center gap-1 flex-shrink-0 pr-2">
+            <div class="flex items-center gap-1 flex-shrink-0 pr-1.5 sm:pr-2">
               <!-- 全部节点 -->
               <button data-sub-id="all"
                       @click="activeSubFilter = 'all'; scrollToActiveSub('all')"
-                      class="h-7 px-2.5 rounded-lg transition font-medium flex items-center space-x-1 flex-shrink-0 cursor-pointer"
+                      class="h-7 px-2 sm:px-2.5 rounded-lg transition font-medium flex items-center space-x-1 flex-shrink-0 cursor-pointer"
                       :class="activeSubFilter === 'all' ? 'border border-gray-600 text-white bg-transparent' : 'border border-transparent text-gray-400 hover:text-gray-200'">
                 <span>全部节点</span>
                 <span class="text-[10px] text-gray-500 font-mono">({{ nodes.length }})</span>
@@ -244,7 +253,7 @@
               <!-- 节点导入 -->
               <button data-sub-id="manual" 
                       @click="activeSubFilter = 'manual'; scrollToActiveSub('manual')"
-                      class="h-7 px-2.5 rounded-lg transition font-medium flex items-center space-x-1 flex-shrink-0 cursor-pointer"
+                      class="h-7 px-2 sm:px-2.5 rounded-lg transition font-medium flex items-center space-x-1 flex-shrink-0 cursor-pointer"
                       :class="activeSubFilter === 'manual' ? 'border border-gray-600 text-white bg-transparent' : 'border border-transparent text-gray-400 hover:text-gray-200'">
                 <span>节点导入</span>
                 <span class="text-[10px] text-gray-500 font-mono">({{ manualNodesCount }})</span>
@@ -332,10 +341,10 @@
         </div>
 
         <!-- 节点操作工具条：方案 A (左右分置：左侧为搜索按钮 ⇄ 展开，右侧为排序+多选操作) -->
-        <div v-if="displayNodes.length > 0 || searchQuery" class="flex items-center justify-between gap-2 h-8 relative select-none flex-shrink-0 mb-2.5">
+        <div v-if="displayNodes.length > 0 || searchQuery" class="flex items-center justify-between gap-1.5 sm:gap-2 h-8 relative select-none flex-shrink-0 mb-2.5">
           
           <!-- 左侧：搜索按钮 (常态仅保留搜索icon和搜索两个字，点击后向右丝滑展开搜索框) -->
-          <div class="flex items-center flex-shrink-0">
+          <div class="flex items-center flex-shrink-0" :class="{'hidden sm:flex': isMultiSelectMode}">
             <div class="search-box relative flex items-center h-7 rounded-lg border select-none"
                  :class="(isSearchExpanded || searchQuery) ? 'is-expanded' : 'is-collapsed'"
                  @click="expandSearch">
@@ -371,72 +380,76 @@
           </div>
 
           <!-- 右侧：非多选模式下为【按延迟排序】+【多选操作】；开启多选后为【批量操作控制组】 -->
-          <div class="flex items-center flex-shrink-0 space-x-2">
+          <div class="flex items-center flex-shrink-0 space-x-1.5 sm:space-x-2">
             <!-- 非多选模式：排序 + 多选操作 -->
             <template v-if="!isMultiSelectMode">
               <!-- 1. 按延迟排序按钮 -->
               <button @click="cycleDelaySort" 
-                      class="sort-btn h-7 px-2.5 rounded-lg border border-[#232D3B] bg-[#12171F] hover:bg-[#1C2432] text-xs text-gray-300 hover:text-white transition flex items-center space-x-1.5 cursor-pointer flex-shrink-0"
+                      class="sort-btn h-7 px-2 sm:px-2.5 rounded-lg border border-[#232D3B] bg-[#12171F] hover:bg-[#1C2432] text-xs text-gray-300 hover:text-white transition flex items-center space-x-1 sm:space-x-1.5 cursor-pointer flex-shrink-0"
                       title="点击切换延迟排序">
                 <i class="ph-bold text-xs" :class="{
                   'ph-arrows-down-up text-gray-400': delaySortOrder === 'none',
                   'ph-sort-ascending text-emerald-400': delaySortOrder === 'asc',
                   'ph-sort-descending text-amber-400': delaySortOrder === 'desc'
                 }"></i>
-                <span>{{ delaySortLabel }}</span>
+                <span class="hidden sm:inline">{{ delaySortLabel }}</span>
+                <span class="sm:hidden">{{ delaySortOrder === 'none' ? '排序' : (delaySortOrder === 'asc' ? '低→高' : '高→低') }}</span>
               </button>
 
               <!-- 2. 多选操作按钮 -->
               <button @click.stop="toggleMultiSelectMode" 
-                      class="multi-select-toggle h-7 px-2.5 rounded-lg border text-xs transition flex items-center space-x-1.5 border-[#232D3B] bg-[#12171F] hover:bg-[#1C2432] text-gray-300 hover:text-white cursor-pointer flex-shrink-0">
+                      class="multi-select-toggle h-7 px-2 sm:px-2.5 rounded-lg border text-xs transition flex items-center space-x-1 sm:space-x-1.5 border-[#232D3B] bg-[#12171F] hover:bg-[#1C2432] text-gray-300 hover:text-white cursor-pointer flex-shrink-0">
                 <i class="ph-bold ph-check-square text-xs text-emerald-400"></i>
-                <span>多选操作</span>
+                <span class="hidden sm:inline">多选操作</span>
+                <span class="sm:hidden">多选</span>
               </button>
             </template>
 
             <!-- 开启多选模式时：批量操作控制组 -->
             <template v-else>
-              <div class="batch-actions-bar flex items-center space-x-1.5">
-                <div class="flex items-center space-x-1 text-xs text-gray-400 font-mono pr-1">
-                  <span>已选 <strong class="text-emerald-400">{{ selectedNodeIds.length }}</strong> 项</span>
+              <div class="batch-actions-bar flex items-center space-x-1 sm:space-x-1.5 overflow-x-auto custom-scrollbar no-scrollbar py-0.5">
+                <div class="flex items-center space-x-0.5 sm:space-x-1 text-xs text-gray-400 font-mono pr-0.5 sm:pr-1 flex-shrink-0">
+                  <span>已选 <strong class="text-emerald-400">{{ selectedNodeIds.length }}</strong></span>
                   <button v-if="selectedNodeIds.length > 0" @click="clearSelection" class="text-gray-500 hover:text-gray-300 p-0.5" title="取消所有选中">
                     <i class="ph-bold ph-x text-xs"></i>
                   </button>
                   <button @click="toggleSelectVisible" 
-                          class="ml-1 text-[10px] text-gray-400 hover:text-emerald-400 px-1.5 py-0.5 rounded border border-[#232D3B] hover:border-emerald-500/30 bg-[#0A0D12] transition" 
+                          class="ml-0.5 sm:ml-1 text-[10px] text-gray-400 hover:text-emerald-400 px-1 sm:px-1.5 py-0.5 rounded border border-[#232D3B] hover:border-emerald-500/30 bg-[#0A0D12] transition" 
                           :title="allVisibleSelected ? '取消全选' : '全选所有显示的节点'">
                     {{ allVisibleSelected ? '全不选' : '全选' }}
                   </button>
                 </div>
 
                 <button @click="batchTestDelay" :disabled="batchTesting"
-                        class="h-7 px-2.5 rounded-lg border border-[#232D3B] bg-[#12171F] hover:bg-[#1C2432] text-xs text-gray-300 hover:text-white transition flex items-center space-x-1 cursor-pointer disabled:opacity-50">
+                        class="h-7 px-1.5 sm:px-2.5 rounded-lg border border-[#232D3B] bg-[#12171F] hover:bg-[#1C2432] text-xs text-gray-300 hover:text-white transition flex items-center space-x-1 cursor-pointer disabled:opacity-50 flex-shrink-0">
                   <i class="ph-bold text-xs" :class="batchTesting ? 'ph-circle-notch animate-spin' : 'ph-gauge'"></i>
-                  <span>{{ batchTesting ? '测试中' : '延迟测试' }}</span>
+                  <span class="hidden sm:inline">{{ batchTesting ? '测试中' : '延迟测试' }}</span>
+                  <span class="sm:hidden">{{ batchTesting ? '测试' : '延迟' }}</span>
                 </button>
 
                 <button v-if="batchTesting || batchSpeedTesting" @click="cancelActiveTest"
-                        class="h-7 px-2.5 rounded-lg bg-rose-500/15 hover:bg-rose-600 text-rose-400 hover:text-white border border-rose-500/25 text-xs transition flex items-center space-x-1"
+                        class="h-7 px-1.5 sm:px-2.5 rounded-lg bg-rose-500/15 hover:bg-rose-600 text-rose-400 hover:text-white border border-rose-500/25 text-xs transition flex items-center space-x-1 flex-shrink-0"
                         title="取消当前测试 (Esc)">
                   <i class="ph-bold ph-x text-xs"></i>
                   <span>取消</span>
                 </button>
 
                 <button @click="batchTestSpeed" :disabled="batchSpeedTesting"
-                        class="h-7 px-2.5 rounded-lg border border-[#232D3B] bg-[#12171F] hover:bg-[#1C2432] text-xs text-gray-300 hover:text-white transition flex items-center space-x-1 cursor-pointer disabled:opacity-50">
+                        class="h-7 px-1.5 sm:px-2.5 rounded-lg border border-[#232D3B] bg-[#12171F] hover:bg-[#1C2432] text-xs text-gray-300 hover:text-white transition flex items-center space-x-1 cursor-pointer disabled:opacity-50 flex-shrink-0">
                   <i class="ph-bold text-xs" :class="batchSpeedTesting ? 'ph-circle-notch animate-spin' : 'ph-lightning'"></i>
-                  <span>{{ batchSpeedTesting ? '测速中' : '速度测试' }}</span>
+                  <span class="hidden sm:inline">{{ batchSpeedTesting ? '测速中' : '速度测试' }}</span>
+                  <span class="sm:hidden">{{ batchSpeedTesting ? '测速' : '测速' }}</span>
                 </button>
 
                 <button @click="batchDeleteSelected"
-                        class="batch-delete-btn h-7 px-2 rounded-lg bg-rose-500/15 hover:bg-rose-600 text-rose-400 hover:text-white border border-rose-500/25 text-xs font-medium transition flex items-center space-x-1 cursor-pointer"
+                        class="batch-delete-btn h-7 px-1.5 sm:px-2 rounded-lg bg-rose-500/15 hover:bg-rose-600 text-rose-400 hover:text-white border border-rose-500/25 text-xs font-medium transition flex items-center space-x-1 cursor-pointer flex-shrink-0"
                         title="批量删除所选节点">
                   <i class="ph-bold ph-trash text-xs"></i>
-                  <span>删除</span>
+                  <span class="hidden sm:inline">删除</span>
                 </button>
 
                 <button @click="exitMultiSelectMode" 
-                        class="h-7 px-2.5 rounded-lg border border-[#232D3B] bg-[#12171F] hover:bg-[#1C2432] text-xs text-gray-400 hover:text-white transition cursor-pointer"
+                        class="h-7 px-2 sm:px-2.5 rounded-lg border border-[#232D3B] bg-[#12171F] hover:bg-[#1C2432] text-xs text-gray-400 hover:text-white transition cursor-pointer flex-shrink-0"
                         title="退出多选模式">
                   <span>退出</span>
                 </button>
@@ -463,18 +476,18 @@
           <!-- 节点列表滚动视口 (高度自适应撑满剩余区域，仅内部纵向滚动) -->
           <div ref="nodeListScrollRef"
                @scroll.passive="handleNodeListScroll"
-               class="overflow-y-auto space-y-0.5 select-none flex-1 min-h-0 custom-scrollbar no-scrollbar pr-8">
+               class="overflow-y-auto space-y-0.5 select-none flex-1 min-h-0 custom-scrollbar no-scrollbar pr-1 sm:pr-8">
             <div v-for="node in displayNodes" :id="'node-row-' + node.id" :key="node.id" 
                  @click="handleNodeClick(node, $event)"
                  @dblclick.prevent="handleNodeDblClick(node)"
-                 class="list-row rounded-md pl-3 pr-1.5 h-[30px] flex items-center justify-between text-xs group relative transition-colors"
+                 class="list-row rounded-md pl-2 sm:pl-3 pr-1.5 h-[30px] flex items-center justify-between text-xs group relative transition-colors"
                  :class="[
                    isMultiSelectMode ? 'cursor-pointer' : 'cursor-default',
                    isNodeSelected(node.id) ? '!border-emerald-500/80 !bg-[#152330]' : ''
                  ]">
             
             <!-- 列 1：左侧自适应区域 -->
-            <div class="flex-1 min-w-0 flex items-center space-x-2.5 pr-2 overflow-hidden">
+            <div class="flex-1 min-w-0 flex items-center space-x-2 sm:space-x-2.5 pr-1.5 sm:pr-2 overflow-hidden">
               <!-- 激活指示槽：普通模式支持单击切换节点，多选模式变身为复选框 -->
               <div class="w-4 h-4 flex-shrink-0 flex items-center justify-center cursor-pointer group/dot p-0.5"
                    @click.stop="isMultiSelectMode ? handleNodeClick(node) : fastSwitchNode(node)"
@@ -494,10 +507,10 @@
               </div>
 
               <!-- 节点名称与订阅标签：同一行内并排，超长省略截断，严格保护右侧固定列不受挤压 -->
-              <div class="min-w-0 flex-1 flex items-baseline space-x-2 overflow-hidden">
+              <div class="min-w-0 flex-1 flex items-baseline space-x-1.5 sm:space-x-2 overflow-hidden">
                 <!-- 节点名称 (最大宽度截断，保留 min-w 契约) -->
                 <span v-if="editingNodeId !== node.id" 
-                      class="font-medium text-white truncate text-xs hover:text-emerald-400 transition leading-snug cursor-pointer min-w-0 max-w-[180px] sm:max-w-[260px] md:max-w-[280px]"
+                      class="font-medium text-white truncate text-xs hover:text-emerald-400 transition leading-snug cursor-pointer min-w-0 max-w-[130px] sm:max-w-[260px] md:max-w-[280px]"
                       @click.stop="isMultiSelectMode ? handleNodeClick(node) : startInlineRename(node)" 
                       :title="node.name + (isMultiSelectMode ? '' : '（点击修改备注）')">
                   {{ node.name }}
@@ -510,11 +523,11 @@
                        @keydown.esc="cancelInlineRename"
                        @blur="saveInlineRename(node)"
                        type="text" 
-                       class="h-5 bg-[#0A0D12] border border-emerald-500 rounded px-1 text-xs text-white font-medium focus:outline-none min-w-[100px] max-w-[200px]">
+                       class="h-5 bg-[#0A0D12] border border-emerald-500 rounded px-1 text-xs text-white font-medium focus:outline-none min-w-[80px] max-w-[200px]">
 
                 <!-- 订阅来源标签 (限制最长显示，超长省略并悬停提示，不挤占节点名称) -->
                 <span v-if="getNodeSubName(node.subscription_id)" 
-                      class="text-[11px] text-gray-500 leading-snug truncate max-w-[100px] sm:max-w-[150px] shrink-0 select-none"
+                      class="text-[11px] text-gray-500 leading-snug truncate hidden sm:inline max-w-[100px] sm:max-w-[150px] shrink-0 select-none"
                       :title="'订阅源：' + getNodeSubName(node.subscription_id)">
                   {{ getNodeSubName(node.subscription_id) }}
                 </span>
@@ -522,7 +535,7 @@
             </div>
 
             <!-- 列 2：延迟数值只读展示 (原地保留，不可点击) -->
-            <div class="w-16 flex-shrink-0 flex items-center justify-center font-mono text-xs select-none cursor-default">
+            <div class="w-14 sm:w-16 flex-shrink-0 flex items-center justify-center font-mono text-xs select-none cursor-default">
               <span v-if="node.testing && (node.last_delay == null || node.last_delay < 0)" class="text-amber-400 animate-pulse text-[11px] flex items-center space-x-1">
                 <i class="ph-bold ph-circle-notch animate-spin text-xs"></i>
               </span>
@@ -541,7 +554,7 @@
             </div>
 
             <!-- 列 3：速度数值只读展示 (原地保留，不可点击) -->
-            <div class="w-20 flex-shrink-0 flex items-center justify-center font-mono text-xs select-none cursor-default">
+            <div class="w-16 sm:w-20 flex-shrink-0 flex items-center justify-center font-mono text-xs select-none cursor-default">
               <span v-if="node.speedTesting && node.liveSpeed" class="text-[11px] text-amber-300 animate-pulse">
                 {{ node.liveSpeed }}
               </span>
@@ -640,10 +653,10 @@
     </div>
 
           <!-- ================= 视图 2：分流规则管理 ================= -->
-          <div class="tabs-slider-pane w-full h-full min-h-0 flex-shrink-0 flex flex-col" :class="{'pointer-events-none': currentTab !== 'routing'}">
+          <div class="tabs-slider-pane w-full h-full min-h-0 flex-shrink-0 flex flex-col overflow-y-auto md:overflow-y-hidden custom-scrollbar pr-0.5 pb-10 md:pb-0" :class="{'pointer-events-none': currentTab !== 'routing'}">
         
-        <!-- 顶部提示说明 (高度与下边距严格对齐节点列表页的订阅切换栏 h-11 mb-3，保证第一行字在视口中绝对一致) -->
-        <div class="h-11 flex items-center text-xs text-gray-400 flex-shrink-0 mb-3 px-0.5">
+        <!-- 顶部提示说明 (高度与下边距严格对齐节点列表页的订阅切换栏 h-11 mb-3，移动端自适应高度) -->
+        <div class="min-h-11 py-2 flex items-center text-xs text-gray-400 flex-shrink-0 mb-3 px-0.5 leading-relaxed">
           <span>端口 <strong class="text-emerald-400 font-mono">{{ ports.routing }}</strong> 按拦截 → 代理 → 直连的优先级匹配；端口 <strong class="text-amber-400 font-mono">{{ ports.socks }}/{{ ports.http }}</strong> 强制直通代理。</span>
         </div>
 
@@ -651,7 +664,7 @@
         <div class="grid grid-cols-1 md:grid-cols-3 gap-3.5">
           
           <!-- 栏 1：直连规则 (Direct) -->
-          <div class="routing-card panel-box rounded-xl p-3 flex flex-col relative h-[280px] md:h-[550px] bg-[#12171F]"
+          <div class="routing-card panel-box rounded-xl p-3 flex flex-col relative h-[260px] md:h-[480px] lg:h-[550px] bg-[#12171F]"
                @mouseenter="handleRoutingMouseEnter('direct')"
                @mouseleave="handleRoutingMouseLeave('direct')">
             <!-- 栏标头 -->
@@ -700,7 +713,7 @@
           </div>
 
           <!-- 栏 2：代理规则 (Proxy) -->
-          <div class="routing-card panel-box rounded-xl p-3 flex flex-col relative h-[280px] md:h-[550px] bg-[#12171F]"
+          <div class="routing-card panel-box rounded-xl p-3 flex flex-col relative h-[260px] md:h-[480px] lg:h-[550px] bg-[#12171F]"
                @mouseenter="handleRoutingMouseEnter('proxy')"
                @mouseleave="handleRoutingMouseLeave('proxy')">
             <!-- 栏标头 -->
@@ -749,7 +762,7 @@
           </div>
 
           <!-- 栏 3：拦截规则 (Block) -->
-          <div class="routing-card panel-box rounded-xl p-3 flex flex-col relative h-[280px] md:h-[550px] bg-[#12171F]"
+          <div class="routing-card panel-box rounded-xl p-3 flex flex-col relative h-[260px] md:h-[480px] lg:h-[550px] bg-[#12171F]"
                @mouseenter="handleRoutingMouseEnter('block')"
                @mouseleave="handleRoutingMouseLeave('block')">
             <!-- 栏标头 -->
@@ -836,11 +849,11 @@
       </div>
 
       <!-- 抽屉头部状态栏 (整条整行点击均可直接展开/收起) -->
-      <div class="drawer-header h-8 px-4 flex items-center justify-between text-xs border-b border-[#232D3B]/80 bg-[#12171F] select-none gap-3 cursor-pointer hover:bg-[#151B24] transition-colors"
+      <div class="drawer-header h-8 px-2.5 sm:px-4 flex items-center justify-between text-xs border-b border-[#232D3B]/80 bg-[#12171F] select-none gap-2 sm:gap-3 cursor-pointer hover:bg-[#151B24] transition-colors"
            @click="drawerExpanded = !drawerExpanded">
         
         <!-- 左侧标识与折叠时最新日志流水 (直接叫“日志”，无多余access标签，倒序最新置顶) -->
-        <div class="flex items-center space-x-2 flex-1 min-w-0">
+        <div class="flex items-center space-x-1.5 sm:space-x-2 flex-1 min-w-0">
           <i class="ph-bold ph-terminal-window text-emerald-400 text-sm flex-shrink-0"></i>
           <span class="font-medium text-gray-200 flex-shrink-0">日志</span>
           
@@ -851,18 +864,18 @@
         </div>
 
         <!-- 展开工具栏 (通过 @click.stop 阻止头部折叠触发) -->
-        <div v-if="drawerExpanded" class="flex items-center space-x-2 flex-shrink-0" @click.stop>
+        <div v-if="drawerExpanded" class="flex items-center space-x-1 sm:space-x-2 flex-shrink-0" @click.stop>
           <!-- 快速分类过滤胶囊 (无多余access标签，面向功能视角) -->
-          <div class="flex items-center space-x-1 text-[11px]">
-            <button @click="logFilter = ''" class="px-2 py-0.5 rounded transition" :class="logFilter === '' ? 'bg-gray-700 text-white' : 'text-gray-500 hover:text-gray-300'">全部</button>
-            <button @click="logFilter = 'system'" class="px-2 py-0.5 rounded transition" :class="logFilter === 'system' ? 'bg-purple-600/30 text-purple-300' : 'text-gray-500 hover:text-gray-300'">操作</button>
-            <button @click="logFilter = 'proxy'" class="px-2 py-0.5 rounded transition" :class="logFilter === 'proxy' ? 'bg-emerald-600/30 text-emerald-400' : 'text-gray-500 hover:text-gray-300'">代理</button>
-            <button @click="logFilter = 'direct'" class="px-2 py-0.5 rounded transition" :class="logFilter === 'direct' ? 'bg-cyan-600/30 text-cyan-400' : 'text-gray-500 hover:text-gray-300'">直连</button>
+          <div class="flex items-center space-x-0.5 sm:space-x-1 text-[11px]">
+            <button @click="logFilter = ''" class="px-1.5 sm:px-2 py-0.5 rounded transition" :class="logFilter === '' ? 'bg-gray-700 text-white' : 'text-gray-500 hover:text-gray-300'">全部</button>
+            <button @click="logFilter = 'system'" class="px-1.5 sm:px-2 py-0.5 rounded transition" :class="logFilter === 'system' ? 'bg-purple-600/30 text-purple-300' : 'text-gray-500 hover:text-gray-300'">操作</button>
+            <button @click="logFilter = 'proxy'" class="px-1.5 sm:px-2 py-0.5 rounded transition" :class="logFilter === 'proxy' ? 'bg-emerald-600/30 text-emerald-400' : 'text-gray-500 hover:text-gray-300'">代理</button>
+            <button @click="logFilter = 'direct'" class="px-1.5 sm:px-2 py-0.5 rounded transition" :class="logFilter === 'direct' ? 'bg-cyan-600/30 text-cyan-400' : 'text-gray-500 hover:text-gray-300'">直连</button>
           </div>
 
           <!-- 搜索输入 -->
-          <input v-model="logFilter" type="text" placeholder="过滤日志..." 
-                 class="w-28 bg-[#0A0D12] border border-[#232D3B] rounded px-2 py-0.5 text-[11px] font-mono text-gray-200 focus:outline-none focus:border-emerald-500">
+          <input v-model="logFilter" type="text" placeholder="过滤..." 
+                 class="w-16 sm:w-24 md:w-28 bg-[#0A0D12] border border-[#232D3B] rounded px-1.5 sm:px-2 py-0.5 text-[11px] font-mono text-gray-200 focus:outline-none focus:border-emerald-500">
 
           <!-- 自动滚动开关 -->
           <button @click="autoScroll = !autoScroll" 
@@ -870,7 +883,7 @@
                   :class="autoScroll ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' : 'bg-[#0A0D12] text-gray-500 border-[#232D3B]'"
                   :title="autoScroll ? '新日志自动滚动已开启' : '新日志自动滚动已暂停'">
             <i class="ph-bold text-[10px]" :class="autoScroll ? 'ph-arrow-line-up' : 'ph-pause'"></i>
-            <span>自动滚动</span>
+            <span class="hidden sm:inline">自动滚动</span>
           </button>
 
           <!-- 清屏 -->

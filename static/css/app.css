@@ -15,6 +15,15 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
 }
 
+@media (max-width: 1024px) {
+  body {
+    zoom: 1;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+  }
+}
+
 button, input, textarea, select {
   font-family: inherit;
 }
@@ -406,9 +415,14 @@ html.light .port-inner-divider {
 
 /* 分流规则三栏卡片高度 */
 .routing-card {
-  height: 280px;
+  height: 260px;
 }
 @media (min-width: 768px) {
+  .routing-card {
+    height: 480px;
+  }
+}
+@media (min-width: 1024px) {
   .routing-card {
     height: 550px;
   }
@@ -694,6 +708,12 @@ html.light textarea:focus {
   outline: none !important;
 }
 
+/* 底部抽屉日志面板：限制最大高度不遮挡顶栏 */
+.drawer-panel {
+  max-height: calc(100vh - 48px);
+  max-height: calc(100dvh - 48px);
+}
+
 /* 底部抽屉日志面板：主体换成纯白（#FFFFFF），彻底消灭黑底与彩色 */
 html.light .drawer-panel {
   background-color: #FFFFFF !important;
@@ -927,8 +947,13 @@ html.light .routing-rule-textarea:focus {
 
 /* 展开状态：平滑拉宽至目标宽度，输入框可用 */
 .search-box.is-expanded {
-  width: 12.5rem; /* 200px */
+  width: 9.5rem; /* 152px 移动端尺寸，避免挤压右侧排序与多选 */
   cursor: text;
+}
+@media (min-width: 480px) {
+  .search-box.is-expanded {
+    width: 12.5rem; /* 200px */
+  }
 }
 @media (min-width: 640px) {
   .search-box.is-expanded {
